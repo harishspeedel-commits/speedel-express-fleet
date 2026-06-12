@@ -4,54 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>SPEEDEL EXPRESS | Fleet Management System</title>
-    <meta name="description" content="Complete fleet management system for SPEEDEL EXPRESS - Manage vehicles, drivers, assignments, maintenance, and contracts">
+    <meta name="description" content="Complete fleet management system for SPEEDEL EXPRESS">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
-    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- SheetJS & html2pdf -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         :root {
-            --primary: #e67e22;
-            --primary-dark: #d35400;
-            --secondary: #f39c12;
-            --dark: #2c3e50;
-            --light: #fff5eb;
-            --gray: #7f8c8d;
-            --success: #27ae60;
-            --danger: #e74c3c;
-            --warning: #f1c40f;
-            --white: #ffffff;
-            --shadow: 0 2px 10px rgba(0,0,0,0.08);
+            --primary: #e67e22; --primary-dark: #d35400; --secondary: #f39c12;
+            --dark: #2c3e50; --light: #fff5eb; --gray: #7f8c8d;
+            --success: #27ae60; --danger: #e74c3c; --warning: #f1c40f;
+            --white: #ffffff; --shadow: 0 2px 10px rgba(0,0,0,0.08);
         }
-
-        body.dark {
-            --light: #1a1a2e;
-            --white: #16213e;
-            --dark: #e2e2e2;
-            --gray: #a0a0a0;
-        }
-
-        body {
-            background: var(--light);
-            overflow-x: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .app {
-            display: flex;
-            min-height: 100vh;
-        }
-
+        body.dark { --light: #1a1a2e; --white: #16213e; --dark: #e2e2e2; --gray: #a0a0a0; }
+        body { background: var(--light); transition: all 0.3s ease; }
+        .app { display: flex; min-height: 100vh; }
         .sidebar {
             width: 280px;
             background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
@@ -62,283 +31,73 @@
             height: 100vh;
             overflow-y: auto;
             z-index: 100;
-            transition: transform 0.3s ease;
         }
-
-        .sidebar-header {
-            padding: 30px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            text-align: center;
-        }
-
+        .sidebar-header { padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
         .logo-preview {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 15px;
-            background: var(--white);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            cursor: pointer;
-            border: 2px solid var(--primary);
+            width: 80px; height: 80px; margin: 0 auto 15px; background: var(--white);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; cursor: pointer; border: 2px solid var(--primary);
         }
-
-        .logo-preview img, .logo-preview i {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            font-size: 40px;
-            color: var(--primary);
-        }
-
-        .sidebar-header h2 {
-            color: var(--secondary);
-            font-size: 1.3rem;
-        }
-
-        .nav-links {
-            flex: 1;
-            padding: 20px 0;
-        }
-
+        .logo-preview img, .logo-preview i { width: 100%; height: 100%; object-fit: cover; font-size: 40px; color: var(--primary); }
+        .sidebar-header h2 { color: var(--secondary); font-size: 1.3rem; }
+        .nav-links { flex: 1; padding: 20px 0; }
         .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 24px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s;
-            font-size: 1rem;
-            cursor: pointer;
-            border: none;
-            background: none;
-            width: 100%;
-            text-align: left;
+            display: flex; align-items: center; gap: 12px; padding: 12px 24px;
+            color: white; font-size: 1rem; cursor: pointer; border: none;
+            background: none; width: 100%; text-align: left;
         }
-
-        .nav-link:hover, .nav-link.active {
-            background: rgba(230, 126, 34, 0.3);
-            padding-left: 30px;
-            border-left: 3px solid var(--primary);
-        }
-
+        .nav-link:hover, .nav-link.active { background: rgba(230, 126, 34, 0.3); padding-left: 30px; border-left: 3px solid var(--primary); }
         .nav-link i { width: 24px; }
-
-        .sidebar-footer {
-            padding: 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-        }
-
-        .logout-btn, .change-pwd-btn {
-            width: 100%;
-            padding: 10px;
-            background: var(--danger);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-
-        .change-pwd-btn { background: var(--primary); }
-
-        .main-content {
-            margin-left: 280px;
-            flex: 1;
-            padding: 30px;
-            min-height: 100vh;
-        }
-
+        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .user-info { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .logout-btn, .change-pwd-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+        .logout-btn { background: var(--danger); color: white; }
+        .change-pwd-btn { background: var(--primary); color: white; }
+        .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; }
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .page-header { margin-bottom: 30px; }
         .page-header h1 { color: var(--dark); font-size: 2rem; }
         .page-header p { color: var(--gray); margin-top: 5px; }
-
-        .card {
-            background: var(--white);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: var(--shadow);
-        }
-
-        .card-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            border-left: 4px solid var(--primary);
-            padding-left: 15px;
-            color: var(--dark);
-        }
-
+        .card { background: var(--white); border-radius: 15px; padding: 25px; margin-bottom: 25px; box-shadow: var(--shadow); }
+        .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; color: var(--dark); }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: var(--dark); }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            background: var(--white);
-            color: var(--dark);
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
+        input, select, textarea { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: var(--white); color: var(--dark); }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.3s; }
         button:hover { background: var(--primary-dark); }
-
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: var(--light); font-weight: 600; color: var(--dark); }
         td { color: var(--dark); }
         tr:hover { background: rgba(230, 126, 34, 0.05); }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
         .status-active { background: var(--success); color: white; }
         .status-maintenance { background: var(--danger); color: white; }
-
-        .action-icons i {
-            margin: 0 5px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            color: var(--primary);
-        }
-
+        .action-icons i { margin: 0 5px; cursor: pointer; font-size: 1.1rem; color: var(--primary); }
         .grid-2, .grid-3, .grid-4 { display: grid; gap: 20px; }
         .grid-2 { grid-template-columns: repeat(2, 1fr); }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
-
-        .filter-bar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-bar input { width: 200px; }
-
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-        }
-
-        .login-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-        }
-
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+        .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+        .login-card { background: white; padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
         .login-card h1 { color: var(--primary); margin-bottom: 10px; }
         .login-card input { margin: 10px 0; }
         .error-message { color: var(--danger); margin: 10px 0; }
-
-        .toast-msg {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--dark);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 30px;
-            z-index: 1000;
-            animation: fadeOut 3s forwards;
-        }
-
-        @keyframes fadeOut {
-            0% { opacity: 1; transform: translateY(0); }
-            70% { opacity: 1; }
-            100% { opacity: 0; visibility: hidden; }
-        }
-
-        .theme-toggle {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: var(--primary);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 1000;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background: var(--white);
-            padding: 30px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 400px;
-        }
+        .toast-msg { position: fixed; bottom: 20px; right: 20px; background: var(--dark); color: white; padding: 12px 24px; border-radius: 30px; z-index: 1000; animation: fadeOut 3s forwards; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+        .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-content { background: var(--white); padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; }
         .modal-content h3 { margin-bottom: 20px; color: var(--dark); }
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .admin-badge { background: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
     </style>
 </head>
 <body>
@@ -394,15 +153,15 @@
         if(supervisors.length === 0) {
             supervisors = [
                 { id: 's1', mobile: '9876543210', name: 'Alex Expediter', password: '1234', contractId: 'c1' },
-                { id: 's2', mobile: '9988776655', name: 'Jane AXP', password: '1234', contractId: 'c2' }
+                { id: 's2', mobile: '9988776655', name: 'Jane AXP', password: '1234', contractId: 'c2' },
+                { id: 's3', mobile: '8877665544', name: 'Raj Partload', password: '1234', contractId: 'c3' },
+                { id: 's4', mobile: '7766554433', name: 'Neha Others', password: '1234', contractId: 'c4' }
             ];
         }
         renderAllPages();
     }
 
-    // Helper: Check if user can edit (only Super Admin)
     function canEdit() { return currentUser && userRole === 'admin'; }
-    // Helper: Get available vehicles (non-maintenance for supervisors)
     function getAvailableVehicles() {
         if(userRole === 'admin') return vehicles;
         return vehicles.filter(v => v.status === 'Active');
@@ -418,6 +177,37 @@
         renderReportsPage();
         renderDashboardPage();
         renderLogo();
+        updateNavLinks();
+    }
+
+    function updateNavLinks() {
+        const navContainer = document.querySelector('.nav-links');
+        if(!navContainer) return;
+        const isAdmin = canEdit();
+        let supervisorsLink = document.querySelector('.nav-link[data-page="supervisorsPage"]');
+        let contractsLink = document.querySelector('.nav-link[data-page="contractsPage"]');
+        
+        if(isAdmin) {
+            if(!supervisorsLink) {
+                const newSupLink = document.createElement('button');
+                newSupLink.className = 'nav-link';
+                newSupLink.setAttribute('data-page', 'supervisorsPage');
+                newSupLink.setAttribute('onclick', "showPage('supervisorsPage')");
+                newSupLink.innerHTML = '<i class="fas fa-users-cog"></i> Supervisors';
+                navContainer.appendChild(newSupLink);
+            }
+            if(!contractsLink) {
+                const newConLink = document.createElement('button');
+                newConLink.className = 'nav-link';
+                newConLink.setAttribute('data-page', 'contractsPage');
+                newConLink.setAttribute('onclick', "showPage('contractsPage')");
+                newConLink.innerHTML = '<i class="fas fa-file-signature"></i> Contracts';
+                navContainer.appendChild(newConLink);
+            }
+        } else {
+            if(supervisorsLink) supervisorsLink.remove();
+            if(contractsLink) contractsLink.remove();
+        }
     }
 
     function renderLogo() {
@@ -428,6 +218,28 @@
             } else {
                 logoContainer.innerHTML = '<i class="fas fa-truck"></i>';
             }
+            if(canEdit()) {
+                logoContainer.style.cursor = 'pointer';
+                logoContainer.onclick = () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if(file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                companyLogo = ev.target.result;
+                                localStorage.setItem('companyLogo', companyLogo);
+                                renderLogo();
+                                notify("Logo updated!");
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    };
+                    input.click();
+                };
+            }
         }
     }
 
@@ -437,14 +249,14 @@
         const canEditFlag = canEdit();
         container.innerHTML = `
             <div class="card">
-                <div class="card-title"><i class="fas fa-plus-circle"></i> Add New Vehicle ${!canEditFlag ? '(Admin Only)' : ''}</div>
+                <div class="card-title"><i class="fas fa-plus-circle"></i> Add New Vehicle ${!canEditFlag ? '<span class="admin-badge">Admin Only</span>' : ''}</div>
                 ${canEditFlag ? `
                 <div class="grid-2">
                     <div class="form-group"><label>Registration Number</label><input type="text" id="newVehicleReg" placeholder="e.g., KA01AB9999"></div>
                     <div class="form-group"><label>Initial Status</label><select id="newVehicleStatus"><option value="Active">Active</option><option value="Maintenance">Maintenance</option></select></div>
                 </div>
                 <button onclick="addVehicle()"><i class="fas fa-save"></i> Add Vehicle</button>
-                ` : '<p style="color:var(--danger)">Only Super Admin can add vehicles</p>'}
+                ` : '<p style="color:var(--danger);padding:10px;">Only Super Admin can add vehicles</p>'}
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
@@ -463,14 +275,14 @@
         const canEditFlag = canEdit();
         container.innerHTML = `
             <div class="card">
-                <div class="card-title"><i class="fas fa-user-plus"></i> Add New Driver ${!canEditFlag ? '(Admin Only)' : ''}</div>
+                <div class="card-title"><i class="fas fa-user-plus"></i> Add New Driver ${!canEditFlag ? '<span class="admin-badge">Admin Only</span>' : ''}</div>
                 ${canEditFlag ? `
                 <div class="grid-2">
                     <div class="form-group"><label>Driver Name</label><input type="text" id="newDriverName" placeholder="Full name"></div>
                     <div class="form-group"><label>License Number</label><input type="text" id="newDriverLicense" placeholder="License No"></div>
                 </div>
                 <button onclick="addDriver()"><i class="fas fa-save"></i> Add Driver</button>
-                ` : '<p style="color:var(--danger)">Only Super Admin can add drivers</p>'}
+                ` : '<p style="color:var(--danger);padding:10px;">Only Super Admin can add drivers</p>'}
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-id-card"></i> All Drivers</div>
@@ -533,7 +345,7 @@
                 <div class="card-title"><i class="fas fa-clipboard-list"></i> Fleet Status</div>
                 <div class="table-container">
                     <table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
-                    <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : '<button onclick="setMaintenanceById(\''+v.id+'\')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>'}</td></tr>`).join('')}</tbody>
+                    <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody>
                     </table>
                 </div>
             </div>
@@ -546,7 +358,7 @@
         if(!canEdit()) { container.innerHTML = '<div class="card"><p style="color:var(--danger)">Only Super Admin can manage contracts</p></div>'; return; }
         container.innerHTML = `
             <div class="card"><div class="card-title"><i class="fas fa-file-signature"></i> Manage Contracts</div>
-            <div class="grid-2"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName"></div><button onclick="addContract()">Add Contract</button></div></div>
+            <div class="grid-2"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div><button onclick="addContract()">Add Contract</button></div></div>
             <div class="card"><div class="card-title">Existing Contracts</div>
             <div class="table-container"><table><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
             <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
@@ -558,14 +370,23 @@
         if(!container) return;
         if(!canEdit()) { container.innerHTML = '<div class="card"><p style="color:var(--danger)">Only Super Admin can manage supervisors</p></div>'; return; }
         container.innerHTML = `
-            <div class="card"><div class="card-title"><i class="fas fa-users-cog"></i> Create Supervisor</div>
-            <div class="grid-2"><div class="form-group"><label>Mobile Number</label><input type="text" id="supMobile"></div>
-            <div class="form-group"><label>Full Name</label><input type="text" id="supName"></div>
-            <div class="form-group"><label>Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div>
-            <button onclick="createSupervisor()">Create Supervisor</button></div>
-            <div class="card"><div class="card-title">All Supervisors</div>
-            <div class="table-container"><table><thead><tr><th>Name</th><th>Mobile</th><th>Contract</th><th>Actions</th></tr></thead>
-            <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.mobile}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-edit" onclick="editSupervisor('${s.id}')"></i><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-users-cog"></i> Create New Supervisor</div>
+                <div class="grid-2">
+                    <div class="form-group"><label>Mobile Number (Login ID)</label><input type="text" id="supMobile" placeholder="e.g., 9876543210"></div>
+                    <div class="form-group"><label>Full Name</label><input type="text" id="supName" placeholder="Full name"></div>
+                    <div class="form-group"><label>Assign Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                </div>
+                <button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor (Default Password: 1234)</button>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-users"></i> All Supervisors</div>
+                <div class="table-container">
+                    <table><thead><tr><th>Name</th><th>Mobile</th><th>Contract</th><th>Actions</th></tr></thead>
+                    <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.mobile}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-edit" onclick="editSupervisor('${s.id}')"></i><i class="fas fa-key" onclick="resetSupervisorPassword('${s.id}')" title="Reset Password"></i><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>
         `;
     }
 
@@ -574,12 +395,12 @@
         if(!container) return;
         container.innerHTML = `
             <div class="card"><div class="card-title"><i class="fas fa-filter"></i> Filter Reports</div>
-            <div class="filter-bar"><input type="text" id="filterVehicle" placeholder="Filter by Vehicle" onkeyup="filterReports()"><input type="text" id="filterDriver" placeholder="Filter by Driver" onkeyup="filterReports()"></div>
+            <div class="filter-bar"><input type="text" id="filterVehicle" placeholder="Filter by Vehicle Reg" onkeyup="filterReports()"><input type="text" id="filterDriver" placeholder="Filter by Driver Name" onkeyup="filterReports()"></div>
             <div id="reportTable"></div></div>
             <div class="card"><div class="card-title"><i class="fas fa-chart-line"></i> Export Reports</div>
-            <div style="display:flex; gap:15px; flex-wrap:wrap;"><button onclick="exportToExcel()">Export to Excel</button><button onclick="exportToPDF()">Export to PDF</button></div></div>
+            <div style="display:flex; gap:15px; flex-wrap:wrap;"><button onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Export to Excel</button><button onclick="exportToPDF()"><i class="fas fa-file-pdf"></i> Export to PDF</button></div></div>
             <div class="card"><div class="card-title"><i class="fas fa-bullhorn"></i> Global Notice</div>
-            <textarea id="globalNoticeEditor" rows="3">${globalNotice}</textarea><button onclick="updateGlobalNotice()" style="margin-top:10px">Update Notice</button></div>
+            <textarea id="globalNoticeEditor" rows="3" style="width:100%">${globalNotice}</textarea><button onclick="updateGlobalNotice()" style="margin-top:10px">Update Notice</button></div>
         `;
         filterReports();
     }
@@ -608,17 +429,17 @@
         const container = document.getElementById('dashboardContent');
         if(!container) return;
         container.innerHTML = `
-            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.displayName}</p></div>
+            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.displayName} ${!canEdit() ? '(Supervisor)' : '(Super Admin)'}</p></div>
             ${globalNotice ? `<div class="card" style="background:var(--warning);color:var(--dark)"><i class="fas fa-bullhorn"></i> ${globalNotice}</div>` : ''}
             <div class="grid-3">
-                <div class="card"><h3>Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div>
-                <div class="card"><h3>Drivers</h3><p style="font-size:2rem;font-weight:bold">${drivers.length}</p></div>
-                <div class="card"><h3>Today's Assignments</h3><p style="font-size:2rem;font-weight:bold">${assignments.filter(a=>a.date === new Date().toISOString().split('T')[0]).length}</p></div>
+                <div class="card"><h3><i class="fas fa-truck"></i> Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div>
+                <div class="card"><h3><i class="fas fa-id-card"></i> Drivers</h3><p style="font-size:2rem;font-weight:bold">${drivers.length}</p></div>
+                <div class="card"><h3><i class="fas fa-calendar-check"></i> Today's Assignments</h3><p style="font-size:2rem;font-weight:bold">${assignments.filter(a=>a.date === new Date().toISOString().split('T')[0]).length}</p></div>
             </div>
         `;
     }
 
-    // CRUD Operations (Admin only checks in UI, but functions also respect)
+    // CRUD Operations
     window.addVehicle = () => { if(!canEdit()) return notify("Only Admin can add"); const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; vehicles.push({ id: Date.now().toString(), reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }); saveToLocalStorage(); renderAllPages(); notify("Vehicle added"); };
     window.editVehicle = (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; saveToLocalStorage(); renderAllPages(); notify("Vehicle updated"); } };
     window.deleteVehicle = (id) => { if(!canEdit()) return; vehicles = vehicles.filter(v=>v.id !== id); saveToLocalStorage(); renderAllPages(); notify("Deleted"); };
@@ -631,55 +452,27 @@
     window.markReady = () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Repaired"; saveToLocalStorage(); renderAllPages(); notify("Ready"); } };
     window.markReadyById = (id) => { const vehicle = vehicles.find(v=>v.id === id); if(vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Ready"; saveToLocalStorage(); renderAllPages(); notify(`${vehicle.reg} ready`); } };
     window.setMaintenanceById = (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if(vehicle && remark) { vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; saveToLocalStorage(); renderAllPages(); notify("In Maintenance"); } };
-    window.addContract = () => { const name = document.getElementById('newContractName')?.value; if(name) { contracts.push({ id: Date.now().toString(), name }); saveToLocalStorage(); renderAllPages(); notify("Contract added"); } };
-    window.deleteContract = (id) => { contracts = contracts.filter(c=>c.id !== id); saveToLocalStorage(); renderAllPages(); };
-    window.createSupervisor = () => { const mobile = document.getElementById('supMobile')?.value; const name = document.getElementById('supName')?.value; if(mobile && name) { supervisors.push({ id: Date.now().toString(), mobile, name, password: "1234", contractId: document.getElementById('supContractId')?.value }); saveToLocalStorage(); renderAllPages(); notify("Supervisor created, password: 1234"); } };
-    window.editSupervisor = (id) => { const newName = prompt("New Name:"); if(newName) { const s = supervisors.find(s=>s.id===id); if(s) s.name = newName; saveToLocalStorage(); renderAllPages(); notify("Updated"); } };
-    window.deleteSupervisor = (id) => { supervisors = supervisors.filter(s=>s.id !== id); saveToLocalStorage(); renderAllPages(); };
+    window.addContract = () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { contracts.push({ id: Date.now().toString(), name }); saveToLocalStorage(); renderAllPages(); notify("Contract added"); } };
+    window.deleteContract = (id) => { if(!canEdit()) return; contracts = contracts.filter(c=>c.id !== id); saveToLocalStorage(); renderAllPages(); };
+    window.createSupervisor = () => { if(!canEdit()) return; const mobile = document.getElementById('supMobile')?.value; const name = document.getElementById('supName')?.value; if(mobile && name) { supervisors.push({ id: Date.now().toString(), mobile, name, password: "1234", contractId: document.getElementById('supContractId')?.value }); saveToLocalStorage(); renderAllPages(); notify(`Supervisor ${name} created! Password: 1234`); } else notify("Please fill all fields"); };
+    window.editSupervisor = (id) => { if(!canEdit()) return; const newName = prompt("New Name:"); if(newName) { const s = supervisors.find(s=>s.id===id); if(s) s.name = newName; saveToLocalStorage(); renderAllPages(); notify("Updated"); } };
+    window.resetSupervisorPassword = (id) => { if(!canEdit()) return; const s = supervisors.find(s=>s.id===id); if(s) { s.password = "1234"; saveToLocalStorage(); renderAllPages(); notify(`Password reset to 1234 for ${s.name}`); } };
+    window.deleteSupervisor = (id) => { if(!canEdit()) return; supervisors = supervisors.filter(s=>s.id !== id); saveToLocalStorage(); renderAllPages(); };
     window.updateGlobalNotice = () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; saveToLocalStorage(); renderAllPages(); notify("Notice updated"); };
     window.exportToExcel = () => { const wsData = assignments.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments"); XLSX.writeFile(wb, `SPEEDEL_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Exported"); };
     window.exportToPDF = () => { const element = document.querySelector('#reportTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`SPEEDEL_Report.pdf` }).save(); };
     window.filterReports = filterReports;
     window.toggleTheme = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); };
 
-    // Logo Upload
-    function setupLogoUpload() {
-        const logoContainer = document.getElementById('logoContainer');
-        if(logoContainer && canEdit()) {
-            logoContainer.style.cursor = 'pointer';
-            logoContainer.onclick = () => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if(file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            companyLogo = ev.target.result;
-                            localStorage.setItem('companyLogo', companyLogo);
-                            renderLogo();
-                            notify("Logo updated!");
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                };
-                input.click();
-            };
-        }
-    }
-
     // Change Password Modal
-    function showChangePassword() {
-        document.getElementById('pwdModal').style.display = 'flex';
-    }
+    function showChangePassword() { document.getElementById('pwdModal').style.display = 'flex'; }
     function closePwdModal() { document.getElementById('pwdModal').style.display = 'none'; }
     function changePassword() {
         const oldPwd = document.getElementById('oldPwd').value;
         const newPwd = document.getElementById('newPwd').value;
         if(userRole === 'admin') {
             if(oldPwd === 'SPDL@8055') {
-                alert("Password change for admin would require Firebase. For demo, admin password remains.");
+                alert("Admin password change requires Firebase. For demo, admin password remains 'SPDL@8055'.");
                 closePwdModal();
             } else { notify("Wrong old password"); }
         } else {
@@ -703,7 +496,6 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             loadFromLocalStorage();
-            setupLogoUpload();
             return true;
         }
         const supervisor = supervisors.find(s => s.mobile === mobile && s.password === password);
@@ -728,7 +520,7 @@
         const savedTheme = localStorage.getItem('theme');
         if(savedTheme === 'dark') document.body.classList.add('dark');
         const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="text" id="loginEmail" placeholder="Email / Mobile"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
-        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links"><button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button><button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button><button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button><button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button><button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button>${canEdit() ? '<button class="nav-link" data-page="contractsPage" onclick="showPage(\'contractsPage\')"><i class="fas fa-file-signature"></i> Contracts</button><button class="nav-link" data-page="supervisorsPage" onclick="showPage(\'supervisorsPage\')"><i class="fas fa-users-cog"></i> Supervisors</button>' : ''}<button class="nav-link" data-page="reportsPage" onclick="showPage(\'reportsPage\')"><i class="fas fa-chart-line"></i> Reports</button></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="change-pwd-btn" onclick="showChangePassword()"><i class="fas fa-key"></i> Change Password</button><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div><div id="pwdModal" class="modal"><div class="modal-content"><h3>Change Password</h3><div class="form-group"><label>Old Password</label><input type="password" id="oldPwd"></div><div class="form-group"><label>New Password</label><input type="password" id="newPwd"></div><div class="modal-buttons"><button onclick="changePassword()">Update</button><button onclick="closePwdModal()">Cancel</button></div></div></div>`;
+        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"><button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button><button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button><button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button><button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button><button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button><button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="change-pwd-btn" onclick="showChangePassword()"><i class="fas fa-key"></i> Change Password</button><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div><div id="pwdModal" class="modal"><div class="modal-content"><h3>Change Password</h3><div class="form-group"><label>Old Password</label><input type="password" id="oldPwd"></div><div class="form-group"><label>New Password</label><input type="password" id="newPwd"></div><div class="modal-buttons"><button onclick="changePassword()">Update</button><button onclick="closePwdModal()">Cancel</button></div></div></div>`;
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
         document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { document.getElementById('currentUserName').innerText = currentUser?.displayName || ''; showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
         window.showPage = (pageId) => { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId)?.classList.add('active'); document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); Array.from(document.querySelectorAll('.nav-link')).find(l => l.getAttribute('data-page') === pageId)?.classList.add('active'); };
