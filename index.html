@@ -178,7 +178,6 @@
             const contractsSnap = await getDocs(collection(db, 'contracts'));
             if (!contractsSnap.empty) contracts = contractsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             else {
-                // Initialize default contracts
                 const defaultContracts = ['Expediter', 'AXP', 'Part-load', 'Others'];
                 for (const name of defaultContracts) {
                     const docRef = await addDoc(collection(db, 'contracts'), { name });
@@ -196,6 +195,7 @@
             if (noticeSnap.exists()) globalNotice = noticeSnap.data().value;
             
             renderAllPages();
+            renderNavigation(); // Re-render navigation after data loads
         } catch(e) { console.error("Firestore error:", e); notify("Firebase connection issue. Check console."); }
     }
 
@@ -233,6 +233,35 @@
     function getAvailableVehicles() {
         if(userRole === 'admin') return vehicles;
         return vehicles.filter(v => v.status === 'Active');
+    }
+
+    // Render navigation based on user role
+    function renderNavigation() {
+        const navContainer = document.getElementById('navLinksContainer');
+        if (!navContainer) return;
+        
+        const isAdmin = canEdit();
+        
+        // Base navigation for all users
+        let navHtml = `
+            <button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+            <button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button>
+            <button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button>
+            <button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button>
+            <button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button>
+        `;
+        
+        // Add admin-only navigation
+        if (isAdmin) {
+            navHtml += `
+                <button class="nav-link" data-page="contractsPage" onclick="showPage('contractsPage')"><i class="fas fa-file-signature"></i> Contracts</button>
+                <button class="nav-link" data-page="supervisorsPage" onclick="showPage('supervisorsPage')"><i class="fas fa-users-cog"></i> Supervisors</button>
+            `;
+        }
+        
+        navHtml += `<button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button>`;
+        
+        navContainer.innerHTML = navHtml;
     }
 
     function renderAllPages() {
@@ -298,9 +327,10 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}<tr></thead>
-                    <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                </table>
+                    <table>
+                        <thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                        <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -324,9 +354,10 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-id-card"></i> All Drivers</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
-                    <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                </table>
+                    <table>
+                        <thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                        <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -352,14 +383,15 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-list"></i> Assignment Records</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
-                    <tbody>${assignments.map(a => {
-                        const driver = drivers.find(d=>d.id===a.driverId);
-                        const vehicle = vehicles.find(v=>v.id===a.vehicleId);
-                        const contract = contracts.find(c=>c.id===a.contractId);
-                        return `<tr><td>${a.date}</td><td>${driver?.name || '?'}</td><td>${vehicle?.reg || '?'}</td><td>${contract?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`;
-                    }).join('')}</tbody>
-                </table>
+                    <table>
+                        <thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
+                        <tbody>${assignments.map(a => {
+                            const driver = drivers.find(d=>d.id===a.driverId);
+                            const vehicle = vehicles.find(v=>v.id===a.vehicleId);
+                            const contract = contracts.find(c=>c.id===a.contractId);
+                            return `<tr><td>${a.date}</td><td>${driver?.name || '?'}</td><td>${vehicle?.reg || '?'}</td><td>${contract?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`;
+                        }).join('')}</tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -381,8 +413,9 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-clipboard-list"></i> Fleet Status</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
-                    <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody>
+                    <table>
+                        <thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
+                        <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody>
                     </table>
                 </div>
             </div>
@@ -398,7 +431,7 @@
             <div class="grid-2"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div><button onclick="addContract()">Add Contract</button></div></div>
             <div class="card"><div class="card-title">Existing Contracts</div>
             <div class="table-container"><table><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
-            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody>...</div></div>
+            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
@@ -419,9 +452,10 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-users"></i> All Supervisors</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
-                    <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
-                </table>
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
+                        <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -458,7 +492,7 @@
                 const vehicle = vehicles.find(v=>v.id===a.vehicleId);
                 const contract = contracts.find(c=>c.id===a.contractId);
                 return `<tr><td>${a.date}</td><td>${driver?.name}</td><td>${vehicle?.reg}</td><td>${contract?.name}</td><td>${a.remarks}</td></tr>`;
-            }).join('')}</tbody>...</div>`;
+            }).join('')}</tbody></table></div>`;
         }
     }
 
@@ -492,7 +526,7 @@
     window.addContract = async () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { const id = await saveToFirestore('contracts', { name }); if(id) { contracts.push({ id, name }); renderAllPages(); notify("Contract added"); } } };
     window.deleteContract = async (id) => { if(!canEdit()) return; await deleteFromFirestore('contracts', id); contracts = contracts.filter(c=>c.id !== id); renderAllPages(); };
     window.createSupervisor = async () => { if(!canEdit()) return; const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if(email && name) { const tempPassword = Math.random().toString(36).slice(-8); try { const userCred = await createUserWithEmailAndPassword(auth, email, tempPassword); const supData = { email, name, password: tempPassword, contractId: document.getElementById('supContractId')?.value, uid: userCred.user.uid }; const id = await saveToFirestore('supervisors', supData); if(id) { supervisors.push({ id, ...supData }); renderAllPages(); notify(`Supervisor ${name} created! Password: ${tempPassword}`); } } catch(e) { notify("Error: " + e.message); } } else notify("Fill all fields"); };
-    window.deleteSupervisor = async (id) => { if(!canEdit()) return; const sup = supervisors.find(s=>s.id===id); if(sup && sup.uid) { try { const user = auth.currentUser; if(user && user.uid !== sup.uid) { await deleteFromFirestore('supervisors', id); supervisors = supervisors.filter(s=>s.id !== id); renderAllPages(); notify("Deleted"); } } catch(e) { notify("Error deleting"); } } };
+    window.deleteSupervisor = async (id) => { if(!canEdit()) return; const sup = supervisors.find(s=>s.id===id); if(sup && sup.uid) { try { await deleteFromFirestore('supervisors', id); supervisors = supervisors.filter(s=>s.id !== id); renderAllPages(); notify("Deleted"); } catch(e) { notify("Error deleting"); } } };
     window.updateGlobalNotice = async () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; if(window.db) await setDoc(doc(db, 'settings', 'globalNotice'), { value: globalNotice }); renderAllPages(); notify("Notice updated"); };
     window.exportToExcel = () => { const wsData = assignments.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments"); XLSX.writeFile(wb, `SPEEDEL_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Exported"); };
     window.exportToPDF = () => { const element = document.querySelector('#reportTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`SPEEDEL_Report.pdf` }).save(); };
@@ -521,6 +555,7 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0];
+            renderNavigation(); // Update navigation based on role
             await loadFirestoreData();
             return true;
         } catch(e) { return false; }
@@ -539,7 +574,7 @@
         const savedTheme = localStorage.getItem('theme');
         if(savedTheme === 'dark') document.body.classList.add('dark');
         const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
-        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"><button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button><button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button><button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button><button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button><button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button><button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
+        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
         document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
         showPage('dashboardPage');
