@@ -90,9 +90,7 @@
         .nav-link i { width: 24px; }
         .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
         .user-info { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .logout-btn, .change-pwd-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
-        .logout-btn { background: var(--danger); color: white; }
-        .change-pwd-btn { background: var(--primary); color: white; }
+        .logout-btn { width: 100%; padding: 10px; background: var(--danger); color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
         .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; }
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
@@ -133,10 +131,6 @@
         .toast-msg { position: fixed; bottom: 20px; right: 20px; background: var(--dark); color: white; padding: 12px 24px; border-radius: 30px; z-index: 1000; animation: fadeOut 3s forwards; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
         .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
-        .modal-content { background: var(--white); padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; }
-        .modal-content h3 { margin-bottom: 20px; color: var(--dark); }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .admin-badge { background: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
         .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 1.5rem; color: var(--primary); }
     </style>
@@ -165,7 +159,6 @@
         setTimeout(() => toast.remove(), 3000);
     }
 
-    // Load data from Firestore
     async function loadFirestoreData() {
         if (!window.db) return;
         try {
@@ -195,7 +188,6 @@
             if (noticeSnap.exists()) globalNotice = noticeSnap.data().value;
             
             renderAllPages();
-            renderNavigation(); // Re-render navigation after data loads
         } catch(e) { console.error("Firestore error:", e); notify("Firebase connection issue. Check console."); }
     }
 
@@ -235,14 +227,9 @@
         return vehicles.filter(v => v.status === 'Active');
     }
 
-    // Render navigation based on user role
-    function renderNavigation() {
-        const navContainer = document.getElementById('navLinksContainer');
-        if (!navContainer) return;
-        
+    // Fixed navigation - ALWAYS show Contracts and Supervisors for admin
+    function buildNavigation() {
         const isAdmin = canEdit();
-        
-        // Base navigation for all users
         let navHtml = `
             <button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
             <button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button>
@@ -251,7 +238,6 @@
             <button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button>
         `;
         
-        // Add admin-only navigation
         if (isAdmin) {
             navHtml += `
                 <button class="nav-link" data-page="contractsPage" onclick="showPage('contractsPage')"><i class="fas fa-file-signature"></i> Contracts</button>
@@ -261,7 +247,8 @@
         
         navHtml += `<button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button>`;
         
-        navContainer.innerHTML = navHtml;
+        const navContainer = document.getElementById('navLinksContainer');
+        if (navContainer) navContainer.innerHTML = navHtml;
     }
 
     function renderAllPages() {
@@ -274,6 +261,7 @@
         renderReportsPage();
         renderDashboardPage();
         renderLogo();
+        buildNavigation(); // Rebuild navigation on every render
     }
 
     function renderLogo() {
@@ -326,12 +314,8 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
-                        <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div>
             </div>
         `;
     }
@@ -353,12 +337,8 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-id-card"></i> All Drivers</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
-                        <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div>
             </div>
         `;
     }
@@ -382,17 +362,13 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-list"></i> Assignment Records</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
-                        <tbody>${assignments.map(a => {
-                            const driver = drivers.find(d=>d.id===a.driverId);
-                            const vehicle = vehicles.find(v=>v.id===a.vehicleId);
-                            const contract = contracts.find(c=>c.id===a.contractId);
-                            return `<tr><td>${a.date}</td><td>${driver?.name || '?'}</td><td>${vehicle?.reg || '?'}</td><td>${contract?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`;
-                        }).join('')}</tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
+                <tbody>${assignments.map(a => {
+                    const driver = drivers.find(d=>d.id===a.driverId);
+                    const vehicle = vehicles.find(v=>v.id===a.vehicleId);
+                    const contract = contracts.find(c=>c.id===a.contractId);
+                    return `<tr><td>${a.date}</td><td>${driver?.name || '?'}</td><td>${vehicle?.reg || '?'}</td><td>${contract?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`;
+                }).join('')}</tbody></table></div>
             </div>
         `;
     }
@@ -412,12 +388,8 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-clipboard-list"></i> Fleet Status</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
-                        <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
+                <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody></table></div>
             </div>
         `;
     }
@@ -447,16 +419,12 @@
                     <div class="form-group"><label>Full Name</label><input type="text" id="supName" placeholder="Full name"></div>
                     <div class="form-group"><label>Assign Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 </div>
-                <button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor</button>
+                <button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor (Password auto-generated)</button>
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-users"></i> All Supervisors</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
-                        <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
+                <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody></table></div>
             </div>
         `;
     }
@@ -500,7 +468,7 @@
         const container = document.getElementById('dashboardContent');
         if(!container) return;
         container.innerHTML = `
-            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.displayName || currentUser?.email} ${!canEdit() ? '(Supervisor)' : '(Super Admin)'}</p></div>
+            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.email || 'User'} ${canEdit() ? '(Super Admin)' : '(Supervisor)'}</p></div>
             ${globalNotice ? `<div class="card" style="background:var(--warning);color:var(--dark)"><i class="fas fa-bullhorn"></i> ${globalNotice}</div>` : ''}
             <div class="grid-3">
                 <div class="card"><h3><i class="fas fa-truck"></i> Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div>
@@ -510,7 +478,7 @@
         `;
     }
 
-    // CRUD Operations with Firestore
+    // CRUD Operations
     window.addVehicle = async () => { if(!canEdit()) return; const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; const newVehicle = { reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }; const id = await saveToFirestore('vehicles', newVehicle); if(id) { vehicles.push({ id, ...newVehicle }); renderAllPages(); notify("Vehicle added"); } };
     window.editVehicle = async (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { await updateInFirestore('vehicles', id, { reg: newReg }); const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; renderAllPages(); notify("Updated"); } };
     window.deleteVehicle = async (id) => { if(!canEdit()) return; await deleteFromFirestore('vehicles', id); vehicles = vehicles.filter(v=>v.id !== id); renderAllPages(); notify("Deleted"); };
@@ -525,7 +493,7 @@
     window.setMaintenanceById = async (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if(vehicle && remark) { await updateInFirestore('vehicles', id, { status: 'Maintenance', maintenanceRemark: remark }); vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; renderAllPages(); notify("In Maintenance"); } };
     window.addContract = async () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { const id = await saveToFirestore('contracts', { name }); if(id) { contracts.push({ id, name }); renderAllPages(); notify("Contract added"); } } };
     window.deleteContract = async (id) => { if(!canEdit()) return; await deleteFromFirestore('contracts', id); contracts = contracts.filter(c=>c.id !== id); renderAllPages(); };
-    window.createSupervisor = async () => { if(!canEdit()) return; const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if(email && name) { const tempPassword = Math.random().toString(36).slice(-8); try { const userCred = await createUserWithEmailAndPassword(auth, email, tempPassword); const supData = { email, name, password: tempPassword, contractId: document.getElementById('supContractId')?.value, uid: userCred.user.uid }; const id = await saveToFirestore('supervisors', supData); if(id) { supervisors.push({ id, ...supData }); renderAllPages(); notify(`Supervisor ${name} created! Password: ${tempPassword}`); } } catch(e) { notify("Error: " + e.message); } } else notify("Fill all fields"); };
+    window.createSupervisor = async () => { if(!canEdit()) return; const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if(email && name) { const tempPassword = Math.random().toString(36).slice(-8); try { const userCred = await createUserWithEmailAndPassword(auth, email, tempPassword); const supData = { email, name, password: tempPassword, contractId: document.getElementById('supContractId')?.value, uid: userCred.user.uid }; const id = await saveToFirestore('supervisors', supData); if(id) { supervisors.push({ id, ...supData }); renderAllPages(); notify(`✅ Supervisor ${name} created! Password: ${tempPassword}`); } } catch(e) { notify("Error: " + e.message); } } else notify("Fill all fields"); };
     window.deleteSupervisor = async (id) => { if(!canEdit()) return; const sup = supervisors.find(s=>s.id===id); if(sup && sup.uid) { try { await deleteFromFirestore('supervisors', id); supervisors = supervisors.filter(s=>s.id !== id); renderAllPages(); notify("Deleted"); } catch(e) { notify("Error deleting"); } } };
     window.updateGlobalNotice = async () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; if(window.db) await setDoc(doc(db, 'settings', 'globalNotice'), { value: globalNotice }); renderAllPages(); notify("Notice updated"); };
     window.exportToExcel = () => { const wsData = assignments.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments"); XLSX.writeFile(wb, `SPEEDEL_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Exported"); };
@@ -555,7 +523,6 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0];
-            renderNavigation(); // Update navigation based on role
             await loadFirestoreData();
             return true;
         } catch(e) { return false; }
@@ -566,8 +533,8 @@
     async function setupFirstAdmin() {
         try {
             await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055');
-            console.log("Admin created");
-        } catch(e) { if(e.code !== 'auth/email-already-in-use') console.log("Admin exists or error:", e); }
+            console.log("Admin account created");
+        } catch(e) { if(e.code !== 'auth/email-already-in-use') console.log("Admin setup:", e.message); }
     }
 
     function initApp() {
