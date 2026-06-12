@@ -4,11 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>SPEEDEL EXPRESS | Fleet Management System</title>
-    <meta name="description" content="Complete fleet management system for SPEEDEL EXPRESS">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAq_iW6IYhbSLaa4xvrCN4ekWcbLwc_1k4",
+            authDomain: "speedel-express-fleet.firebaseapp.com",
+            projectId: "speedel-express-fleet",
+            storageBucket: "speedel-express-fleet.firebasestorage.app",
+            messagingSenderId: "441301047064",
+            appId: "1:441301047064:web:f67d43000cf2be6450f06d",
+            measurementId: "G-SRB8MY91VS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.db = db;
+        window.auth = auth;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+        window.query = query;
+        window.where = where;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+
+        console.log("🔥 Firebase connected!");
+        window.firebaseReady = true;
+    </script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
@@ -98,18 +138,20 @@
         .modal-content h3 { margin-bottom: 20px; color: var(--dark); }
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .admin-badge { background: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
+        .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 1.5rem; color: var(--primary); }
     </style>
 </head>
 <body>
 <div id="appRoot"><div class="loading-screen">Loading SPEEDEL EXPRESS...</div></div>
 
 <script>
-    // Data stores
+    // Global state
     let currentUser = null;
     let userRole = null;
+    let userData = null;
     let vehicles = [];
     let drivers = [];
-    let contracts = [{ id: 'c1', name: 'Expediter' }, { id: 'c2', name: 'AXP' }, { id: 'c3', name: 'Part-load' }, { id: 'c4', name: 'Others' }];
+    let contracts = [];
     let supervisors = [];
     let assignments = [];
     let globalNotice = '';
@@ -123,42 +165,68 @@
         setTimeout(() => toast.remove(), 3000);
     }
 
-    function saveToLocalStorage() {
-        localStorage.setItem('speedel_data', JSON.stringify({ vehicles, drivers, contracts, assignments, supervisors, globalNotice }));
+    // Load data from Firestore
+    async function loadFirestoreData() {
+        if (!window.db) return;
+        try {
+            const vehiclesSnap = await getDocs(collection(db, 'vehicles'));
+            vehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const driversSnap = await getDocs(collection(db, 'drivers'));
+            drivers = driversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const contractsSnap = await getDocs(collection(db, 'contracts'));
+            if (!contractsSnap.empty) contracts = contractsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            else {
+                // Initialize default contracts
+                const defaultContracts = ['Expediter', 'AXP', 'Part-load', 'Others'];
+                for (const name of defaultContracts) {
+                    const docRef = await addDoc(collection(db, 'contracts'), { name });
+                    contracts.push({ id: docRef.id, name });
+                }
+            }
+            
+            const assignmentsSnap = await getDocs(collection(db, 'assignments'));
+            assignments = assignmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const supervisorsSnap = await getDocs(collection(db, 'supervisors'));
+            supervisors = supervisorsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const noticeSnap = await getDoc(doc(db, 'settings', 'globalNotice'));
+            if (noticeSnap.exists()) globalNotice = noticeSnap.data().value;
+            
+            renderAllPages();
+        } catch(e) { console.error("Firestore error:", e); notify("Firebase connection issue. Check console."); }
     }
 
-    function loadFromLocalStorage() {
-        const saved = localStorage.getItem('speedel_data');
-        if(saved) {
-            const data = JSON.parse(saved);
-            vehicles = data.vehicles || [];
-            drivers = data.drivers || [];
-            contracts = data.contracts || contracts;
-            assignments = data.assignments || [];
-            supervisors = data.supervisors || [];
-            globalNotice = data.globalNotice || '';
+    async function saveToFirestore(collectionName, data) {
+        if(window.db) {
+            try {
+                const docRef = await addDoc(collection(db, collectionName), data);
+                return docRef.id;
+            } catch(e) { console.error("Save error:", e); return null; }
         }
-        if(vehicles.length === 0) {
-            vehicles = [
-                { id: 'v1', reg: 'KA01AB1234', status: 'Active', maintenanceRemark: '' },
-                { id: 'v2', reg: 'KA02CD5678', status: 'Active', maintenanceRemark: '' }
-            ];
+        return null;
+    }
+
+    async function updateInFirestore(collectionName, id, data) {
+        if(window.db) {
+            try {
+                await updateDoc(doc(db, collectionName, id), data);
+                return true;
+            } catch(e) { console.error("Update error:", e); return false; }
         }
-        if(drivers.length === 0) {
-            drivers = [
-                { id: 'd1', name: 'Ramesh Kumar', license: 'DL12345' },
-                { id: 'd2', name: 'Suresh Singh', license: 'DL67890' }
-            ];
+        return false;
+    }
+
+    async function deleteFromFirestore(collectionName, id) {
+        if(window.db) {
+            try {
+                await deleteDoc(doc(db, collectionName, id));
+                return true;
+            } catch(e) { console.error("Delete error:", e); return false; }
         }
-        if(supervisors.length === 0) {
-            supervisors = [
-                { id: 's1', mobile: '9876543210', name: 'Alex Expediter', password: '1234', contractId: 'c1' },
-                { id: 's2', mobile: '9988776655', name: 'Jane AXP', password: '1234', contractId: 'c2' },
-                { id: 's3', mobile: '8877665544', name: 'Raj Partload', password: '1234', contractId: 'c3' },
-                { id: 's4', mobile: '7766554433', name: 'Neha Others', password: '1234', contractId: 'c4' }
-            ];
-        }
-        renderAllPages();
+        return false;
     }
 
     function canEdit() { return currentUser && userRole === 'admin'; }
@@ -177,37 +245,6 @@
         renderReportsPage();
         renderDashboardPage();
         renderLogo();
-        updateNavLinks();
-    }
-
-    function updateNavLinks() {
-        const navContainer = document.querySelector('.nav-links');
-        if(!navContainer) return;
-        const isAdmin = canEdit();
-        let supervisorsLink = document.querySelector('.nav-link[data-page="supervisorsPage"]');
-        let contractsLink = document.querySelector('.nav-link[data-page="contractsPage"]');
-        
-        if(isAdmin) {
-            if(!supervisorsLink) {
-                const newSupLink = document.createElement('button');
-                newSupLink.className = 'nav-link';
-                newSupLink.setAttribute('data-page', 'supervisorsPage');
-                newSupLink.setAttribute('onclick', "showPage('supervisorsPage')");
-                newSupLink.innerHTML = '<i class="fas fa-users-cog"></i> Supervisors';
-                navContainer.appendChild(newSupLink);
-            }
-            if(!contractsLink) {
-                const newConLink = document.createElement('button');
-                newConLink.className = 'nav-link';
-                newConLink.setAttribute('data-page', 'contractsPage');
-                newConLink.setAttribute('onclick', "showPage('contractsPage')");
-                newConLink.innerHTML = '<i class="fas fa-file-signature"></i> Contracts';
-                navContainer.appendChild(newConLink);
-            }
-        } else {
-            if(supervisorsLink) supervisorsLink.remove();
-            if(contractsLink) contractsLink.remove();
-        }
     }
 
     function renderLogo() {
@@ -261,9 +298,9 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                    <table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}<tr></thead>
                     <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                    </table>
+                </table>
                 </div>
             </div>
         `;
@@ -289,7 +326,7 @@
                 <div class="table-container">
                     <table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
                     <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody>
-                    </table>
+                </table>
                 </div>
             </div>
         `;
@@ -322,7 +359,7 @@
                         const contract = contracts.find(c=>c.id===a.contractId);
                         return `<tr><td>${a.date}</td><td>${driver?.name || '?'}</td><td>${vehicle?.reg || '?'}</td><td>${contract?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`;
                     }).join('')}</tbody>
-                    </table>
+                </table>
                 </div>
             </div>
         `;
@@ -361,7 +398,7 @@
             <div class="grid-2"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div><button onclick="addContract()">Add Contract</button></div></div>
             <div class="card"><div class="card-title">Existing Contracts</div>
             <div class="table-container"><table><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
-            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody>...</div></div>
         `;
     }
 
@@ -373,18 +410,18 @@
             <div class="card">
                 <div class="card-title"><i class="fas fa-users-cog"></i> Create New Supervisor</div>
                 <div class="grid-2">
-                    <div class="form-group"><label>Mobile Number (Login ID)</label><input type="text" id="supMobile" placeholder="e.g., 9876543210"></div>
+                    <div class="form-group"><label>Email (Login ID)</label><input type="email" id="supEmail" placeholder="supervisor@example.com"></div>
                     <div class="form-group"><label>Full Name</label><input type="text" id="supName" placeholder="Full name"></div>
                     <div class="form-group"><label>Assign Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 </div>
-                <button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor (Default Password: 1234)</button>
+                <button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor</button>
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-users"></i> All Supervisors</div>
                 <div class="table-container">
-                    <table><thead><tr><th>Name</th><th>Mobile</th><th>Contract</th><th>Actions</th></tr></thead>
-                    <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.mobile}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-edit" onclick="editSupervisor('${s.id}')"></i><i class="fas fa-key" onclick="resetSupervisorPassword('${s.id}')" title="Reset Password"></i><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
-                    </table>
+                    <table><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
+                    <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>
+                </table>
                 </div>
             </div>
         `;
@@ -421,7 +458,7 @@
                 const vehicle = vehicles.find(v=>v.id===a.vehicleId);
                 const contract = contracts.find(c=>c.id===a.contractId);
                 return `<tr><td>${a.date}</td><td>${driver?.name}</td><td>${vehicle?.reg}</td><td>${contract?.name}</td><td>${a.remarks}</td></tr>`;
-            }).join('')}</tbody></table></div>`;
+            }).join('')}</tbody>...</div>`;
         }
     }
 
@@ -429,7 +466,7 @@
         const container = document.getElementById('dashboardContent');
         if(!container) return;
         container.innerHTML = `
-            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.displayName} ${!canEdit() ? '(Supervisor)' : '(Super Admin)'}</p></div>
+            <div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.displayName || currentUser?.email} ${!canEdit() ? '(Supervisor)' : '(Super Admin)'}</p></div>
             ${globalNotice ? `<div class="card" style="background:var(--warning);color:var(--dark)"><i class="fas fa-bullhorn"></i> ${globalNotice}</div>` : ''}
             <div class="grid-3">
                 <div class="card"><h3><i class="fas fa-truck"></i> Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div>
@@ -439,93 +476,74 @@
         `;
     }
 
-    // CRUD Operations
-    window.addVehicle = () => { if(!canEdit()) return notify("Only Admin can add"); const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; vehicles.push({ id: Date.now().toString(), reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }); saveToLocalStorage(); renderAllPages(); notify("Vehicle added"); };
-    window.editVehicle = (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; saveToLocalStorage(); renderAllPages(); notify("Vehicle updated"); } };
-    window.deleteVehicle = (id) => { if(!canEdit()) return; vehicles = vehicles.filter(v=>v.id !== id); saveToLocalStorage(); renderAllPages(); notify("Deleted"); };
-    window.addDriver = () => { if(!canEdit()) return; const name = document.getElementById('newDriverName')?.value; if(!name) return; drivers.push({ id: Date.now().toString(), name, license: document.getElementById('newDriverLicense')?.value }); saveToLocalStorage(); renderAllPages(); notify("Driver added"); };
-    window.editDriver = (id) => { if(!canEdit()) return; const newName = prompt("New Driver Name:"); if(newName) { const d = drivers.find(d=>d.id===id); if(d) d.name = newName; saveToLocalStorage(); renderAllPages(); notify("Driver updated"); } };
-    window.deleteDriver = (id) => { if(!canEdit()) return; drivers = drivers.filter(d=>d.id !== id); saveToLocalStorage(); renderAllPages(); notify("Deleted"); };
-    window.createAssignment = () => { const driverId = document.getElementById('assignDriverId')?.value; const vehicleId = document.getElementById('assignVehicleId')?.value; if(!driverId || !vehicleId) return notify("Select all"); assignments.push({ id: Date.now().toString(), date: document.getElementById('assignDate')?.value, driverId, vehicleId, contractId: document.getElementById('assignContractId')?.value, remarks: document.getElementById('assignRemarks')?.value }); saveToLocalStorage(); renderAllPages(); notify("Assigned"); };
-    window.deleteAssignment = (id) => { assignments = assignments.filter(a=>a.id !== id); saveToLocalStorage(); renderAllPages(); notify("Deleted"); };
-    window.setMaintenance = () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = document.getElementById('maintenanceRemark')?.value; saveToLocalStorage(); renderAllPages(); notify("In Maintenance"); } };
-    window.markReady = () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Repaired"; saveToLocalStorage(); renderAllPages(); notify("Ready"); } };
-    window.markReadyById = (id) => { const vehicle = vehicles.find(v=>v.id === id); if(vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Ready"; saveToLocalStorage(); renderAllPages(); notify(`${vehicle.reg} ready`); } };
-    window.setMaintenanceById = (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if(vehicle && remark) { vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; saveToLocalStorage(); renderAllPages(); notify("In Maintenance"); } };
-    window.addContract = () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { contracts.push({ id: Date.now().toString(), name }); saveToLocalStorage(); renderAllPages(); notify("Contract added"); } };
-    window.deleteContract = (id) => { if(!canEdit()) return; contracts = contracts.filter(c=>c.id !== id); saveToLocalStorage(); renderAllPages(); };
-    window.createSupervisor = () => { if(!canEdit()) return; const mobile = document.getElementById('supMobile')?.value; const name = document.getElementById('supName')?.value; if(mobile && name) { supervisors.push({ id: Date.now().toString(), mobile, name, password: "1234", contractId: document.getElementById('supContractId')?.value }); saveToLocalStorage(); renderAllPages(); notify(`Supervisor ${name} created! Password: 1234`); } else notify("Please fill all fields"); };
-    window.editSupervisor = (id) => { if(!canEdit()) return; const newName = prompt("New Name:"); if(newName) { const s = supervisors.find(s=>s.id===id); if(s) s.name = newName; saveToLocalStorage(); renderAllPages(); notify("Updated"); } };
-    window.resetSupervisorPassword = (id) => { if(!canEdit()) return; const s = supervisors.find(s=>s.id===id); if(s) { s.password = "1234"; saveToLocalStorage(); renderAllPages(); notify(`Password reset to 1234 for ${s.name}`); } };
-    window.deleteSupervisor = (id) => { if(!canEdit()) return; supervisors = supervisors.filter(s=>s.id !== id); saveToLocalStorage(); renderAllPages(); };
-    window.updateGlobalNotice = () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; saveToLocalStorage(); renderAllPages(); notify("Notice updated"); };
+    // CRUD Operations with Firestore
+    window.addVehicle = async () => { if(!canEdit()) return; const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; const newVehicle = { reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }; const id = await saveToFirestore('vehicles', newVehicle); if(id) { vehicles.push({ id, ...newVehicle }); renderAllPages(); notify("Vehicle added"); } };
+    window.editVehicle = async (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { await updateInFirestore('vehicles', id, { reg: newReg }); const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; renderAllPages(); notify("Updated"); } };
+    window.deleteVehicle = async (id) => { if(!canEdit()) return; await deleteFromFirestore('vehicles', id); vehicles = vehicles.filter(v=>v.id !== id); renderAllPages(); notify("Deleted"); };
+    window.addDriver = async () => { if(!canEdit()) return; const name = document.getElementById('newDriverName')?.value; if(!name) return; const newDriver = { name, license: document.getElementById('newDriverLicense')?.value }; const id = await saveToFirestore('drivers', newDriver); if(id) { drivers.push({ id, ...newDriver }); renderAllPages(); notify("Driver added"); } };
+    window.editDriver = async (id) => { if(!canEdit()) return; const newName = prompt("New Driver Name:"); if(newName) { await updateInFirestore('drivers', id, { name: newName }); const d = drivers.find(d=>d.id===id); if(d) d.name = newName; renderAllPages(); notify("Updated"); } };
+    window.deleteDriver = async (id) => { if(!canEdit()) return; await deleteFromFirestore('drivers', id); drivers = drivers.filter(d=>d.id !== id); renderAllPages(); notify("Deleted"); };
+    window.createAssignment = async () => { const driverId = document.getElementById('assignDriverId')?.value; const vehicleId = document.getElementById('assignVehicleId')?.value; if(!driverId || !vehicleId) return; const newAssign = { date: document.getElementById('assignDate')?.value, driverId, vehicleId, contractId: document.getElementById('assignContractId')?.value, remarks: document.getElementById('assignRemarks')?.value }; const id = await saveToFirestore('assignments', newAssign); if(id) { assignments.push({ id, ...newAssign }); renderAllPages(); notify("Assigned"); } };
+    window.deleteAssignment = async (id) => { await deleteFromFirestore('assignments', id); assignments = assignments.filter(a=>a.id !== id); renderAllPages(); notify("Deleted"); };
+    window.setMaintenance = async () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const remark = document.getElementById('maintenanceRemark')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { await updateInFirestore('vehicles', vehicleId, { status: 'Maintenance', maintenanceRemark: remark }); vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; renderAllPages(); notify("In Maintenance"); } };
+    window.markReady = async () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { await updateInFirestore('vehicles', vehicleId, { status: 'Active', maintenanceRemark: vehicle.maintenanceRemark + " | Repaired" }); vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Repaired"; renderAllPages(); notify("Ready"); } };
+    window.markReadyById = async (id) => { const vehicle = vehicles.find(v=>v.id === id); if(vehicle) { await updateInFirestore('vehicles', id, { status: 'Active', maintenanceRemark: vehicle.maintenanceRemark + " | Ready" }); vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Ready"; renderAllPages(); notify(`${vehicle.reg} ready`); } };
+    window.setMaintenanceById = async (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if(vehicle && remark) { await updateInFirestore('vehicles', id, { status: 'Maintenance', maintenanceRemark: remark }); vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; renderAllPages(); notify("In Maintenance"); } };
+    window.addContract = async () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { const id = await saveToFirestore('contracts', { name }); if(id) { contracts.push({ id, name }); renderAllPages(); notify("Contract added"); } } };
+    window.deleteContract = async (id) => { if(!canEdit()) return; await deleteFromFirestore('contracts', id); contracts = contracts.filter(c=>c.id !== id); renderAllPages(); };
+    window.createSupervisor = async () => { if(!canEdit()) return; const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if(email && name) { const tempPassword = Math.random().toString(36).slice(-8); try { const userCred = await createUserWithEmailAndPassword(auth, email, tempPassword); const supData = { email, name, password: tempPassword, contractId: document.getElementById('supContractId')?.value, uid: userCred.user.uid }; const id = await saveToFirestore('supervisors', supData); if(id) { supervisors.push({ id, ...supData }); renderAllPages(); notify(`Supervisor ${name} created! Password: ${tempPassword}`); } } catch(e) { notify("Error: " + e.message); } } else notify("Fill all fields"); };
+    window.deleteSupervisor = async (id) => { if(!canEdit()) return; const sup = supervisors.find(s=>s.id===id); if(sup && sup.uid) { try { const user = auth.currentUser; if(user && user.uid !== sup.uid) { await deleteFromFirestore('supervisors', id); supervisors = supervisors.filter(s=>s.id !== id); renderAllPages(); notify("Deleted"); } } catch(e) { notify("Error deleting"); } } };
+    window.updateGlobalNotice = async () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; if(window.db) await setDoc(doc(db, 'settings', 'globalNotice'), { value: globalNotice }); renderAllPages(); notify("Notice updated"); };
     window.exportToExcel = () => { const wsData = assignments.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments"); XLSX.writeFile(wb, `SPEEDEL_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Exported"); };
     window.exportToPDF = () => { const element = document.querySelector('#reportTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`SPEEDEL_Report.pdf` }).save(); };
     window.filterReports = filterReports;
     window.toggleTheme = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); };
-
-    // Change Password Modal
-    function showChangePassword() { document.getElementById('pwdModal').style.display = 'flex'; }
-    function closePwdModal() { document.getElementById('pwdModal').style.display = 'none'; }
-    function changePassword() {
-        const oldPwd = document.getElementById('oldPwd').value;
-        const newPwd = document.getElementById('newPwd').value;
-        if(userRole === 'admin') {
-            if(oldPwd === 'SPDL@8055') {
-                alert("Admin password change requires Firebase. For demo, admin password remains 'SPDL@8055'.");
-                closePwdModal();
-            } else { notify("Wrong old password"); }
-        } else {
-            const sup = supervisors.find(s => s.id === currentUser.id);
-            if(sup && sup.password === oldPwd) {
-                sup.password = newPwd;
-                saveToLocalStorage();
-                notify("Password changed successfully!");
-                closePwdModal();
-            } else { notify("Wrong old password"); }
-        }
-        document.getElementById('oldPwd').value = '';
-        document.getElementById('newPwd').value = '';
-    }
+    window.showPage = (pageId) => { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId)?.classList.add('active'); document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); Array.from(document.querySelectorAll('.nav-link')).find(l => l.getAttribute('data-page') === pageId)?.classList.add('active'); };
 
     // Auth
-    async function handleLogin(mobile, password) {
-        if(mobile === 'harishspeedel@gmail.com' && password === 'SPDL@8055') {
-            currentUser = { email: mobile, displayName: 'Harish Admin', id: 'admin' };
-            userRole = 'admin';
+    async function handleLogin(email, password) {
+        try {
+            const userCred = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCred.user;
+            if(email === 'harishspeedel@gmail.com') {
+                currentUser = user;
+                userRole = 'admin';
+                userData = { displayName: 'Harish Admin' };
+            } else {
+                const q = query(collection(db, 'supervisors'), where('email', '==', email));
+                const snapshot = await getDocs(q);
+                if(!snapshot.empty) {
+                    currentUser = user;
+                    userRole = 'supervisor';
+                    userData = snapshot.docs[0].data();
+                } else { await signOut(auth); return false; }
+            }
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            loadFromLocalStorage();
+            document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0];
+            await loadFirestoreData();
             return true;
-        }
-        const supervisor = supervisors.find(s => s.mobile === mobile && s.password === password);
-        if(supervisor) {
-            currentUser = { email: mobile, displayName: supervisor.name, id: supervisor.id, contractId: supervisor.contractId };
-            userRole = 'supervisor';
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-            loadFromLocalStorage();
-            return true;
-        }
-        return false;
+        } catch(e) { return false; }
     }
 
-    function handleLogout() {
-        currentUser = null; userRole = null;
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
+    function handleLogout() { signOut(auth); currentUser = null; userRole = null; document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appContainer').style.display = 'none'; }
+
+    async function setupFirstAdmin() {
+        try {
+            await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055');
+            console.log("Admin created");
+        } catch(e) { if(e.code !== 'auth/email-already-in-use') console.log("Admin exists or error:", e); }
     }
 
     function initApp() {
         const savedTheme = localStorage.getItem('theme');
         if(savedTheme === 'dark') document.body.classList.add('dark');
-        const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="text" id="loginEmail" placeholder="Email / Mobile"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
-        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"><button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button><button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button><button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button><button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button><button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button><button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="change-pwd-btn" onclick="showChangePassword()"><i class="fas fa-key"></i> Change Password</button><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div><div id="pwdModal" class="modal"><div class="modal-content"><h3>Change Password</h3><div class="form-group"><label>Old Password</label><input type="password" id="oldPwd"></div><div class="form-group"><label>New Password</label><input type="password" id="newPwd"></div><div class="modal-buttons"><button onclick="changePassword()">Update</button><button onclick="closePwdModal()">Cancel</button></div></div></div>`;
+        const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
+        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"><button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button><button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button><button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button><button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button><button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button><button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
-        document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { document.getElementById('currentUserName').innerText = currentUser?.displayName || ''; showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
-        window.showPage = (pageId) => { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId)?.classList.add('active'); document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); Array.from(document.querySelectorAll('.nav-link')).find(l => l.getAttribute('data-page') === pageId)?.classList.add('active'); };
-        window.showChangePassword = showChangePassword; window.closePwdModal = closePwdModal; window.changePassword = changePassword;
+        document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
         showPage('dashboardPage');
+        setTimeout(setupFirstAdmin, 2000);
     }
     initApp();
 </script>
