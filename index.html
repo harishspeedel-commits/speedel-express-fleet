@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>SPEEDEL EXPRESS | Fleet Management System</title>
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -60,7 +60,30 @@
         }
         body.dark { --light: #1a1a2e; --white: #16213e; --dark: #e2e2e2; --gray: #a0a0a0; }
         body { background: var(--light); transition: all 0.3s ease; }
-        .app { display: flex; min-height: 100vh; }
+        
+        /* Mobile Menu Button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+        
         .sidebar {
             width: 280px;
             background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
@@ -70,8 +93,73 @@
             position: fixed;
             height: 100vh;
             overflow-y: auto;
-            z-index: 100;
+            z-index: 1000;
+            transition: transform 0.3s ease;
         }
+        
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 70px 15px 30px 15px;
+                width: 100%;
+            }
+            
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .card-title {
+                font-size: 1.1rem;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+            }
+            
+            .filter-bar input {
+                width: 100%;
+            }
+            
+            table {
+                font-size: 0.85rem;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+            }
+            
+            .action-icons i {
+                font-size: 0.9rem;
+            }
+            
+            .theme-toggle {
+                bottom: 15px;
+                left: 15px;
+                width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+        }
+        
         .sidebar-header { padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
         .logo-preview {
             width: 80px; height: 80px; margin: 0 auto 15px; background: var(--white);
@@ -91,12 +179,12 @@
         .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
         .user-info { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; }
         .logout-btn { width: 100%; padding: 10px; background: var(--danger); color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
-        .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; }
+        .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; transition: margin-left 0.3s ease; }
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .page-header { margin-bottom: 30px; }
-        .page-header h1 { color: var(--dark); font-size: 2rem; }
+        .page-header h1 { color: var(--dark); font-size: 2rem; word-break: break-word; }
         .page-header p { color: var(--gray); margin-top: 5px; }
         .card { background: var(--white); border-radius: 15px; padding: 25px; margin-bottom: 25px; box-shadow: var(--shadow); }
         .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; color: var(--dark); }
@@ -107,7 +195,7 @@
         button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.3s; }
         button:hover { background: var(--primary-dark); }
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; min-width: 500px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: var(--light); font-weight: 600; color: var(--dark); }
         td { color: var(--dark); }
@@ -122,17 +210,34 @@
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
         .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-bar input { width: 200px; }
-        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
-        .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+        .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); padding: 20px; }
         .login-card { background: white; padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
-        .login-card h1 { color: var(--primary); margin-bottom: 10px; }
+        .login-card h1 { color: var(--primary); margin-bottom: 10px; font-size: 1.5rem; }
         .login-card input { margin: 10px 0; }
         .error-message { color: var(--danger); margin: 10px 0; }
         .toast-msg { position: fixed; bottom: 20px; right: 20px; background: var(--dark); color: white; padding: 12px 24px; border-radius: 30px; z-index: 1000; animation: fadeOut 3s forwards; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; }
+        .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .admin-badge { background: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
         .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 1.5rem; color: var(--primary); }
+        
+        /* Close sidebar when clicking outside on mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -157,6 +262,25 @@
         toast.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Mobile sidebar functions
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+        }
+    }
+    
+    function closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+        }
     }
 
     async function loadFirestoreData() {
@@ -227,25 +351,24 @@
         return vehicles.filter(v => v.status === 'Active');
     }
 
-    // Fixed navigation - ALWAYS show Contracts and Supervisors for admin
     function buildNavigation() {
         const isAdmin = canEdit();
         let navHtml = `
-            <button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage')"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
-            <button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage')"><i class="fas fa-truck"></i> Vehicles</button>
-            <button class="nav-link" data-page="driversPage" onclick="showPage('driversPage')"><i class="fas fa-id-card"></i> Drivers</button>
-            <button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage')"><i class="fas fa-calendar-check"></i> Assignments</button>
-            <button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage')"><i class="fas fa-wrench"></i> Maintenance</button>
+            <button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage'); closeSidebar();"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+            <button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage'); closeSidebar();"><i class="fas fa-truck"></i> Vehicles</button>
+            <button class="nav-link" data-page="driversPage" onclick="showPage('driversPage'); closeSidebar();"><i class="fas fa-id-card"></i> Drivers</button>
+            <button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage'); closeSidebar();"><i class="fas fa-calendar-check"></i> Assignments</button>
+            <button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage'); closeSidebar();"><i class="fas fa-wrench"></i> Maintenance</button>
         `;
         
         if (isAdmin) {
             navHtml += `
-                <button class="nav-link" data-page="contractsPage" onclick="showPage('contractsPage')"><i class="fas fa-file-signature"></i> Contracts</button>
-                <button class="nav-link" data-page="supervisorsPage" onclick="showPage('supervisorsPage')"><i class="fas fa-users-cog"></i> Supervisors</button>
+                <button class="nav-link" data-page="contractsPage" onclick="showPage('contractsPage'); closeSidebar();"><i class="fas fa-file-signature"></i> Contracts</button>
+                <button class="nav-link" data-page="supervisorsPage" onclick="showPage('supervisorsPage'); closeSidebar();"><i class="fas fa-users-cog"></i> Supervisors</button>
             `;
         }
         
-        navHtml += `<button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage')"><i class="fas fa-chart-line"></i> Reports</button>`;
+        navHtml += `<button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage'); closeSidebar();"><i class="fas fa-chart-line"></i> Reports</button>`;
         
         const navContainer = document.getElementById('navLinksContainer');
         if (navContainer) navContainer.innerHTML = navHtml;
@@ -261,7 +384,7 @@
         renderReportsPage();
         renderDashboardPage();
         renderLogo();
-        buildNavigation(); // Rebuild navigation on every render
+        buildNavigation();
     }
 
     function renderLogo() {
@@ -314,7 +437,7 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
-                <div class="table-container"><table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                <div class="table-container"></table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
                 <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div>
             </div>
         `;
@@ -388,7 +511,7 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-clipboard-list"></i> Fleet Status</div>
-                <div class="table-container"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
+                <div class="table-container"><tr><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
                 <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody></table></div>
             </div>
         `;
@@ -478,7 +601,7 @@
         `;
     }
 
-    // CRUD Operations
+    // CRUD Operations (same as before)
     window.addVehicle = async () => { if(!canEdit()) return; const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; const newVehicle = { reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }; const id = await saveToFirestore('vehicles', newVehicle); if(id) { vehicles.push({ id, ...newVehicle }); renderAllPages(); notify("Vehicle added"); } };
     window.editVehicle = async (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { await updateInFirestore('vehicles', id, { reg: newReg }); const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; renderAllPages(); notify("Updated"); } };
     window.deleteVehicle = async (id) => { if(!canEdit()) return; await deleteFromFirestore('vehicles', id); vehicles = vehicles.filter(v=>v.id !== id); renderAllPages(); notify("Deleted"); };
@@ -541,9 +664,11 @@
         const savedTheme = localStorage.getItem('theme');
         if(savedTheme === 'dark') document.body.classList.add('dark');
         const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
-        const appHtml = `<div id="appContainer" style="display:none"><div class="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
+        const appHtml = `<div id="appContainer" style="display:none"><button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button><div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div><div class="sidebar" id="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
         document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
+        window.toggleSidebar = toggleSidebar;
+        window.closeSidebar = closeSidebar;
         showPage('dashboardPage');
         setTimeout(setupFirstAdmin, 2000);
     }
