@@ -99,6 +99,7 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 70px 15px 30px 15px; width: 100%; }
             .form-row { grid-template-columns: 1fr !important; gap: 15px; }
+            .form-row-3 { grid-template-columns: 1fr !important; }
             .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
             .card { padding: 15px; }
             .filter-row { flex-direction: column; }
@@ -142,10 +143,17 @@
         .status-maintenance { background: var(--danger); color: white; }
         .action-icons i { margin: 0 5px; cursor: pointer; font-size: 1.1rem; color: var(--primary); }
         
-        /* Form Row - Fixed Alignment */
+        /* Form Row - Fixed Alignment for all forms */
         .form-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -195,7 +203,7 @@
 <div id="appRoot"><div class="loading-screen">Loading SPEEDEL EXPRESS...</div></div>
 
 <script>
-    // Global state - persist login
+    // Global state
     let currentUser = null;
     let userRole = null;
     let userData = null;
@@ -233,22 +241,24 @@
         }
     }
 
-    // Save auth state to localStorage
-    function saveAuthState(user, role, data) {
+    // Save user session to localStorage
+    function saveUserSession(user, role, data) {
         if (user) {
-            localStorage.setItem('speedel_auth', JSON.stringify({
+            const sessionData = {
                 uid: user.uid,
                 email: user.email,
                 role: role,
-                userData: data
-            }));
+                userData: data,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('speedel_session', JSON.stringify(sessionData));
         } else {
-            localStorage.removeItem('speedel_auth');
+            localStorage.removeItem('speedel_session');
         }
     }
 
-    function loadAuthState() {
-        const saved = localStorage.getItem('speedel_auth');
+    function getUserSession() {
+        const saved = localStorage.getItem('speedel_session');
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -411,7 +421,7 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
-                <div class="table-container"><table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
+                <div class="table-container"></table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}<tr></thead>
                 <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div>
             </div>
         `;
@@ -434,7 +444,7 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-id-card"></i> All Drivers</div>
-                <div class="table-container"></tr><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</table></thead>
+                <div class="table-container"><table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
                 <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div>
             </div>
         `;
@@ -459,7 +469,7 @@
             </div>
             <div class="card">
                 <div class="card-title"><i class="fas fa-list"></i> Assignment Records</div>
-                <div class="table-container"></tr><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
+                <div class="table-container"></table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
                 <tbody>${assignments.map(a => {
                     const driver = drivers.find(d=>d.id===a.driverId);
                     const vehicle = vehicles.find(v=>v.id===a.vehicleId);
@@ -498,12 +508,18 @@
         if(!container) return;
         if(!canEdit()) { container.innerHTML = '<div class="card"><p style="color:var(--danger)">Only Super Admin can manage contracts</p></div>'; return; }
         container.innerHTML = `
-            <div class="card"><div class="card-title"><i class="fas fa-file-signature"></i> Manage Contracts</div>
-            <div class="form-row"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div></div>
-            <div class="form-actions"><button onclick="addContract()">Add Contract</button></div></div>
-            <div class="card"><div class="card-title">Existing Contracts</div>
-            <div class="table-container"><tr><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
-            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i><\/td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-file-signature"></i> Manage Contracts</div>
+                <div class="form-row">
+                    <div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div>
+                </div>
+                <div class="form-actions"><button onclick="addContract()">Add Contract</button></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Existing Contracts</div>
+                <div class="table-container"></table><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
+                <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i><\/td></tr>`).join('')}</tbody></tr></div>
+            </div>
         `;
     }
 
@@ -514,7 +530,7 @@
         container.innerHTML = `
             <div class="card">
                 <div class="card-title"><i class="fas fa-users-cog"></i> Create New Supervisor</div>
-                <div class="form-row">
+                <div class="form-row-3">
                     <div class="form-group"><label>Email (Login ID)</label><input type="email" id="supEmail" placeholder="supervisor@example.com"></div>
                     <div class="form-group"><label>Full Name</label><input type="text" id="supName" placeholder="Full name"></div>
                     <div class="form-group"><label>Assign Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
@@ -529,7 +545,6 @@
         `;
     }
 
-    // FIXED: Reports Page with proper date filters
     function renderReportsPage() {
         const container = document.getElementById('reportsContent');
         if(!container) return;
@@ -572,21 +587,14 @@
         
         let filtered = [...assignments];
         
-        // Date range filter
-        if (fromDate) {
-            filtered = filtered.filter(a => a.date >= fromDate);
-        }
-        if (toDate) {
-            filtered = filtered.filter(a => a.date <= toDate);
-        }
-        // Vehicle and driver filters
+        if (fromDate) filtered = filtered.filter(a => a.date >= fromDate);
+        if (toDate) filtered = filtered.filter(a => a.date <= toDate);
         filtered = filtered.filter(a => {
             const vehicle = vehicles.find(v=>v.id===a.vehicleId);
             const driver = drivers.find(d=>d.id===a.driverId);
             return (vehicle?.reg.toLowerCase().includes(vehicleFilter)) && (driver?.name.toLowerCase().includes(driverFilter));
         });
         
-        // Sort by date descending
         filtered.sort((a, b) => b.date.localeCompare(a.date));
         
         const reportDiv = document.getElementById('reportTable');
@@ -666,7 +674,7 @@
     window.toggleTheme = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); };
     window.showPage = (pageId) => { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId)?.classList.add('active'); document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); Array.from(document.querySelectorAll('.nav-link')).find(l => l.getAttribute('data-page') === pageId)?.classList.add('active'); };
 
-    // Auth with persistence
+    // Auth with persistent session
     async function handleLogin(email, password) {
         try {
             const userCred = await signInWithEmailAndPassword(auth, email, password);
@@ -684,7 +692,7 @@
                     userData = snapshot.docs[0].data();
                 } else { await signOut(auth); return false; }
             }
-            saveAuthState(currentUser, userRole, userData);
+            saveUserSession(currentUser, userRole, userData);
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0];
@@ -697,18 +705,18 @@
         signOut(auth); 
         currentUser = null; 
         userRole = null; 
-        saveAuthState(null, null, null);
+        saveUserSession(null, null, null);
         document.getElementById('loginScreen').style.display = 'flex'; 
         document.getElementById('appContainer').style.display = 'none'; 
     }
 
-    async function checkAutoLogin() {
-        const savedAuth = loadAuthState();
-        if (savedAuth && savedAuth.uid && window.auth) {
+    async function restoreSession() {
+        const session = getUserSession();
+        if (session && session.uid && window.auth) {
+            // Try to restore session silently
             try {
-                const userCred = await signInWithEmailAndPassword(auth, savedAuth.email, 'dummy'); // This won't work directly, need to re-authenticate
-                // Instead, we'll just show login screen - user must login again for security
-                // But for better UX, we can use onAuthStateChanged
+                // Just show login screen - user must re-enter password for security
+                // But Firebase will auto-restore if token is still valid
                 return false;
             } catch(e) { return false; }
         }
@@ -734,10 +742,9 @@
         showPage('dashboardPage');
         setTimeout(setupFirstAdmin, 2000);
         
-        // Check for existing session using onAuthStateChanged
+        // Auto-restore session using Firebase persistence
         onAuthStateChanged(auth, async (user) => {
             if (user && !currentUser) {
-                // Auto-login detected
                 const email = user.email;
                 if(email === 'harishspeedel@gmail.com') {
                     currentUser = user;
@@ -758,6 +765,7 @@
                     document.getElementById('currentUserName').innerText = userData?.displayName || email?.split('@')[0];
                     await loadFirestoreData();
                     showPage('dashboardPage');
+                    saveUserSession(currentUser, userRole, userData);
                 }
             }
         });
