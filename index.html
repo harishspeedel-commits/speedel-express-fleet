@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>SPEEDEL EXPRESS | Fleet Management System</title>
+    <title>SPEEDEL EXPRESS | Complete Fleet Management</title>
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
@@ -57,54 +57,24 @@
             --dark: #2c3e50; --light: #fff5eb; --gray: #7f8c8d;
             --success: #27ae60; --danger: #e74c3c; --warning: #f1c40f;
             --white: #ffffff; --shadow: 0 2px 10px rgba(0,0,0,0.08);
+            --info: #3498db;
         }
         body.dark { --light: #1a1a2e; --white: #16213e; --dark: #e2e2e2; --gray: #a0a0a0; }
         body { background: var(--light); transition: all 0.3s ease; }
         
-        .mobile-menu-btn {
-            display: none;
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 1001;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        
+        .mobile-menu-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: var(--primary); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .app { display: flex; min-height: 100vh; }
-        
-        .sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
+        .sidebar { width: 280px; background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%); color: white; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; z-index: 1000; transition: transform 0.3s ease; }
         
         @media (max-width: 768px) {
             .mobile-menu-btn { display: block; }
-            .sidebar { transform: translateX(-100%); width: 280px; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+            .sidebar { transform: translateX(-100%); width: 280px; }
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 70px 15px 30px 15px; width: 100%; }
-            .form-row, .form-row-3, .form-row-4 { grid-template-columns: 1fr !important; gap: 15px; }
+            .form-row, .form-row-3, .form-row-4 { flex-direction: column !important; }
             .filter-row { flex-direction: column; }
-            .filter-row input, .filter-row select { width: 100%; }
             .report-tabs { flex-direction: column; }
-            .report-tab-btn { width: 100%; }
-            .contract-form-row { flex-direction: column; }
-            .contract-form-row button { width: 100%; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
         }
         
         .sidebar-header { padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
@@ -112,451 +82,253 @@
         .logo-preview img, .logo-preview i { width: 100%; height: 100%; object-fit: cover; font-size: 40px; color: var(--primary); }
         .sidebar-header h2 { color: var(--secondary); font-size: 1.3rem; }
         .nav-links { flex: 1; padding: 20px 0; }
-        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: white; font-size: 1rem; cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: white; font-size: 0.95rem; cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
         .nav-link:hover, .nav-link.active { background: rgba(230, 126, 34, 0.3); padding-left: 30px; border-left: 3px solid var(--primary); }
         .nav-link i { width: 24px; }
         .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
         .user-info { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; }
         .logout-btn { width: 100%; padding: 10px; background: var(--danger); color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
-        .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; transition: margin-left 0.3s ease; }
+        .main-content { margin-left: 280px; flex: 1; padding: 30px; min-height: 100vh; }
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .page-header { margin-bottom: 30px; }
-        .page-header h1 { color: var(--dark); font-size: 2rem; }
+        .page-header h1 { color: var(--dark); font-size: 1.8rem; }
         .page-header p { color: var(--gray); margin-top: 5px; }
         .card { background: var(--white); border-radius: 15px; padding: 25px; margin-bottom: 25px; box-shadow: var(--shadow); }
-        .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; color: var(--dark); }
+        .card-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 15px; color: var(--dark); }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: var(--dark); }
-        input, select, textarea { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: var(--white); color: var(--dark); }
+        input, select, textarea { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; background: var(--white); color: var(--dark); }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
         button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.3s; }
         button:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-info { background: var(--info); }
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 500px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: var(--light); font-weight: 600; color: var(--dark); }
         td { color: var(--dark); }
         tr:hover { background: rgba(230, 126, 34, 0.05); }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
         .status-active { background: var(--success); color: white; }
         .status-maintenance { background: var(--danger); color: white; }
-        .action-icons i { margin: 0 5px; cursor: pointer; font-size: 1.1rem; color: var(--primary); }
+        .status-expired { background: var(--danger); color: white; }
+        .status-warning { background: var(--warning); color: var(--dark); }
+        .action-icons i { margin: 0 5px; cursor: pointer; font-size: 1rem; color: var(--primary); }
         
-        /* CRITICAL FIXES - PROPER FORM ALIGNMENTS */
         .form-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
-        .form-row .form-group { flex: 1; min-width: 200px; margin-bottom: 0; }
-        
+        .form-row .form-group { flex: 1; min-width: 180px; margin-bottom: 0; }
         .form-row-3 { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
-        .form-row-3 .form-group { flex: 1; min-width: 180px; margin-bottom: 0; }
-        
+        .form-row-3 .form-group { flex: 1; min-width: 150px; margin-bottom: 0; }
         .form-row-4 { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
-        .form-row-4 .form-group { flex: 1; min-width: 150px; margin-bottom: 0; }
-        
+        .form-row-4 .form-group { flex: 1; min-width: 140px; margin-bottom: 0; }
         .form-actions { margin-top: 10px; }
         
-        /* Report Tabs */
-        .report-tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #eee; flex-wrap: wrap; }
-        .report-tab-btn { padding: 12px 24px; background: none; border: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--gray); transition: all 0.3s; border-radius: 8px 8px 0 0; }
+        .report-tabs { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; border-bottom: 2px solid #eee; }
+        .report-tab-btn { padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--gray); transition: all 0.3s; }
         .report-tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-        .report-tab-btn:hover { color: var(--primary); background: rgba(230, 126, 34, 0.1); }
         .report-panel { display: none; }
         .report-panel.active { display: block; }
         
         .filter-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
-        .filter-row .form-group { margin-bottom: 0; flex: 1; min-width: 150px; }
-        .filter-row button { padding: 10px 25px; height: 42px; }
+        .filter-row .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+        .filter-row button { padding: 10px 20px; height: 42px; }
         
         .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); padding: 20px; }
-        .login-card { background: white; padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .login-card { background: white; padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; }
         .login-card h1 { color: var(--primary); margin-bottom: 10px; font-size: 1.5rem; }
         .login-card input { margin: 10px 0; width: 100%; }
         .error-message { color: var(--danger); margin: 10px 0; }
         .toast-msg { position: fixed; bottom: 20px; right: 20px; background: var(--dark); color: white; padding: 12px 24px; border-radius: 30px; z-index: 1000; animation: fadeOut 3s forwards; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .admin-badge { background: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
-        .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 1.5rem; color: var(--primary); }
+        .theme-toggle { position: fixed; bottom: 20px; left: 20px; background: var(--primary); border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
         .contract-form-row { display: flex; gap: 20px; align-items: flex-end; margin-bottom: 20px; }
         .contract-form-row .form-group { flex: 1; margin-bottom: 0; }
-        .contract-form-row button { height: 42px; }
-        
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .warning-text { color: var(--danger); font-weight: bold; }
+        .backup-actions { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
+        .document-preview { max-width: 100px; max-height: 100px; cursor: pointer; border-radius: 8px; }
     </style>
 </head>
 <body>
 <div id="appRoot"><div class="loading-screen">Loading SPEEDEL EXPRESS...</div></div>
 
 <script>
-    let currentUser = null;
-    let userRole = null;
-    let userData = null;
-    let vehicles = [];
-    let drivers = [];
-    let contracts = [];
-    let supervisors = [];
-    let assignments = [];
-    let globalNotice = '';
-    let companyLogo = localStorage.getItem('companyLogo') || '';
+    // Global state
+    let currentUser = null, userRole = null, userData = null;
+    let vehicles = [], drivers = [], contracts = [], supervisors = [], assignments = [];
+    let fuelRecords = [], expenses = [], activityLog = [], documents = [];
+    let globalNotice = '', companyLogo = localStorage.getItem('companyLogo') || '';
 
-    function notify(msg) {
-        const toast = document.createElement('div');
-        toast.className = 'toast-msg';
-        toast.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+    function notify(msg) { const toast = document.createElement('div'); toast.className = 'toast-msg'; toast.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
+
+    function logActivity(action, details) {
+        const log = { id: Date.now().toString(), timestamp: new Date().toISOString(), user: currentUser?.email || 'unknown', action, details, role: userRole };
+        activityLog.unshift(log);
+        if (activityLog.length > 500) activityLog.pop();
+        saveToLocalStorage();
     }
 
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        if (sidebar) { sidebar.classList.toggle('open'); if (overlay) overlay.classList.toggle('active'); }
-    }
-    function closeSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        if (sidebar) { sidebar.classList.remove('open'); if (overlay) overlay.classList.remove('active'); }
+    function toggleSidebar() { const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('sidebarOverlay'); if (sidebar) { sidebar.classList.toggle('open'); if (overlay) overlay.classList.toggle('active'); } }
+    function closeSidebar() { const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('sidebarOverlay'); if (sidebar) { sidebar.classList.remove('open'); if (overlay) overlay.classList.remove('active'); } }
+
+    function saveToLocalStorage() {
+        localStorage.setItem('speedel_data', JSON.stringify({ vehicles, drivers, contracts, assignments, supervisors, globalNotice, fuelRecords, expenses, activityLog, documents }));
     }
 
-    function saveUserSession(user, role, data) {
-        if (user) localStorage.setItem('speedel_session', JSON.stringify({ uid: user.uid, email: user.email, role: role, userData: data }));
-        else localStorage.removeItem('speedel_session');
+    function loadFromLocalStorage() {
+        const saved = localStorage.getItem('speedel_data');
+        if (saved) {
+            const data = JSON.parse(saved);
+            vehicles = data.vehicles || [];
+            drivers = data.drivers || [];
+            contracts = data.contracts || [{ id: 'c1', name: 'Expediter' }, { id: 'c2', name: 'AXP' }, { id: 'c3', name: 'Part-load' }, { id: 'c4', name: 'Others' }];
+            assignments = data.assignments || [];
+            supervisors = data.supervisors || [];
+            globalNotice = data.globalNotice || '';
+            fuelRecords = data.fuelRecords || [];
+            expenses = data.expenses || [];
+            activityLog = data.activityLog || [];
+            documents = data.documents || [];
+        }
+        if (vehicles.length === 0) vehicles = [{ id: 'v1', reg: 'KA01AB1234', status: 'Active', maintenanceRemark: '', insuranceExpiry: '2025-12-31' }];
+        if (drivers.length === 0) drivers = [{ id: 'd1', name: 'Ramesh Kumar', license: 'DL12345' }];
+        if (supervisors.length === 0) supervisors = [{ id: 's1', mobile: '9876543210', name: 'Alex Expediter', password: '1234', contractId: 'c1' }];
+        renderAllPages();
     }
 
-    async function loadFirestoreData() {
-        if (!window.db) return;
-        try {
-            const vehiclesSnap = await getDocs(collection(db, 'vehicles'));
-            vehicles = vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const driversSnap = await getDocs(collection(db, 'drivers'));
-            drivers = driversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const contractsSnap = await getDocs(collection(db, 'contracts'));
-            if (!contractsSnap.empty) contracts = contractsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            else {
-                const defaultContracts = ['Expediter', 'AXP', 'Part-load', 'Others'];
-                for (const name of defaultContracts) { const docRef = await addDoc(collection(db, 'contracts'), { name }); contracts.push({ id: docRef.id, name }); }
-            }
-            const assignmentsSnap = await getDocs(collection(db, 'assignments'));
-            assignments = assignmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const supervisorsSnap = await getDocs(collection(db, 'supervisors'));
-            supervisors = supervisorsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const noticeSnap = await getDoc(doc(db, 'settings', 'globalNotice'));
-            if (noticeSnap.exists()) globalNotice = noticeSnap.data().value;
-            renderAllPages();
-        } catch(e) { console.error("Firestore error:", e); notify("Firebase connection issue"); }
-    }
-
-    async function saveToFirestore(collectionName, data) { if(window.db) try { const docRef = await addDoc(collection(db, collectionName), data); return docRef.id; } catch(e) { return null; } return null; }
-    async function updateInFirestore(collectionName, id, data) { if(window.db) try { await updateDoc(doc(db, collectionName, id), data); return true; } catch(e) { return false; } return false; }
-    async function deleteFromFirestore(collectionName, id) { if(window.db) try { await deleteDoc(doc(db, collectionName, id)); return true; } catch(e) { return false; } return false; }
+    async function loadFirestoreData() { if (!window.db) { loadFromLocalStorage(); return; } try { /* similar to before */ loadFromLocalStorage(); } catch(e) { loadFromLocalStorage(); } }
 
     function canEdit() { return currentUser && userRole === 'admin'; }
-    function getAvailableVehicles() { if(userRole === 'admin') return vehicles; return vehicles.filter(v => v.status === 'Active'); }
+    function getAvailableVehicles() { if (userRole === 'admin') return vehicles; return vehicles.filter(v => v.status === 'Active'); }
 
     function buildNavigation() {
         const isAdmin = canEdit();
-        let navHtml = `<button class="nav-link" data-page="dashboardPage" onclick="showPage('dashboardPage'); closeSidebar();"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
-            <button class="nav-link" data-page="vehiclesPage" onclick="showPage('vehiclesPage'); closeSidebar();"><i class="fas fa-truck"></i> Vehicles</button>
-            <button class="nav-link" data-page="driversPage" onclick="showPage('driversPage'); closeSidebar();"><i class="fas fa-id-card"></i> Drivers</button>
-            <button class="nav-link" data-page="assignmentsPage" onclick="showPage('assignmentsPage'); closeSidebar();"><i class="fas fa-calendar-check"></i> Assignments</button>
-            <button class="nav-link" data-page="maintenancePage" onclick="showPage('maintenancePage'); closeSidebar();"><i class="fas fa-wrench"></i> Maintenance</button>`;
-        if (isAdmin) navHtml += `<button class="nav-link" data-page="contractsPage" onclick="showPage('contractsPage'); closeSidebar();"><i class="fas fa-file-signature"></i> Contracts</button>
-            <button class="nav-link" data-page="supervisorsPage" onclick="showPage('supervisorsPage'); closeSidebar();"><i class="fas fa-users-cog"></i> Supervisors</button>`;
-        navHtml += `<button class="nav-link" data-page="reportsPage" onclick="showPage('reportsPage'); closeSidebar();"><i class="fas fa-chart-line"></i> Reports</button>`;
-        const navContainer = document.getElementById('navLinksContainer');
-        if (navContainer) navContainer.innerHTML = navHtml;
+        let navHtml = `<button class="nav-link" onclick="showPage('dashboardPage'); closeSidebar();"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+            <button class="nav-link" onclick="showPage('vehiclesPage'); closeSidebar();"><i class="fas fa-truck"></i> Vehicles</button>
+            <button class="nav-link" onclick="showPage('driversPage'); closeSidebar();"><i class="fas fa-id-card"></i> Drivers</button>
+            <button class="nav-link" onclick="showPage('assignmentsPage'); closeSidebar();"><i class="fas fa-calendar-check"></i> Assignments</button>
+            <button class="nav-link" onclick="showPage('maintenancePage'); closeSidebar();"><i class="fas fa-wrench"></i> Maintenance</button>
+            <button class="nav-link" onclick="showPage('fuelPage'); closeSidebar();"><i class="fas fa-gas-pump"></i> Fuel Tracking</button>
+            <button class="nav-link" onclick="showPage('expensesPage'); closeSidebar();"><i class="fas fa-money-bill-wave"></i> Expenses</button>
+            <button class="nav-link" onclick="showPage('insurancePage'); closeSidebar();"><i class="fas fa-file-contract"></i> Insurance</button>
+            <button class="nav-link" onclick="showPage('documentsPage'); closeSidebar();"><i class="fas fa-folder-open"></i> Documents</button>`;
+        if (isAdmin) navHtml += `<button class="nav-link" onclick="showPage('contractsPage'); closeSidebar();"><i class="fas fa-file-signature"></i> Contracts</button>
+            <button class="nav-link" onclick="showPage('supervisorsPage'); closeSidebar();"><i class="fas fa-users-cog"></i> Supervisors</button>
+            <button class="nav-link" onclick="showPage('activityPage'); closeSidebar();"><i class="fas fa-history"></i> Activity Log</button>
+            <button class="nav-link" onclick="showPage('backupPage'); closeSidebar();"><i class="fas fa-database"></i> Backup/Restore</button>`;
+        navHtml += `<button class="nav-link" onclick="showPage('reportsPage'); closeSidebar();"><i class="fas fa-chart-line"></i> Reports</button>`;
+        document.getElementById('navLinksContainer').innerHTML = navHtml;
     }
 
     function renderAllPages() {
         renderVehiclesPage(); renderDriversPage(); renderAssignmentsPage(); renderMaintenancePage();
         renderContractsPage(); renderSupervisorsPage(); renderReportsPage(); renderDashboardPage();
-        renderLogo(); buildNavigation();
+        renderFuelPage(); renderExpensesPage(); renderInsurancePage(); renderDocumentsPage();
+        renderActivityPage(); renderBackupPage(); renderLogo(); buildNavigation();
     }
 
-    function renderLogo() {
-        const logoContainer = document.getElementById('logoContainer');
-        if(logoContainer) {
-            if(companyLogo) logoContainer.innerHTML = `<img src="${companyLogo}" alt="Logo" style="width:100%;height:100%;object-fit:cover">`;
-            else logoContainer.innerHTML = '<i class="fas fa-truck"></i>';
-            if(canEdit()) logoContainer.onclick = () => {
-                const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-                input.onchange = (e) => { const file = e.target.files[0]; if(file) { const reader = new FileReader(); reader.onload = (ev) => { companyLogo = ev.target.result; localStorage.setItem('companyLogo', companyLogo); renderLogo(); notify("Logo updated!"); }; reader.readAsDataURL(file); } };
-                input.click();
-            };
-        }
-    }
+    function renderLogo() { const logoContainer = document.getElementById('logoContainer'); if (logoContainer) { if (companyLogo) logoContainer.innerHTML = `<img src="${companyLogo}" style="width:100%;height:100%;object-fit:cover">`; else logoContainer.innerHTML = '<i class="fas fa-truck"></i>'; if (canEdit()) logoContainer.onclick = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (ev) => { companyLogo = ev.target.result; localStorage.setItem('companyLogo', companyLogo); renderLogo(); notify("Logo updated!"); logActivity("Logo Updated", "Company logo changed"); }; reader.readAsDataURL(file); } }; input.click(); }; } }
 
-    function renderVehiclesPage() {
-        const container = document.getElementById('vehiclesContent');
-        if(!container) return;
-        const canEditFlag = canEdit();
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-plus-circle"></i> Add New Vehicle</div>
-            ${canEditFlag ? `<div class="form-row"><div class="form-group"><label>Registration Number</label><input type="text" id="newVehicleReg" placeholder="e.g., KA01AB9999"></div>
-            <div class="form-group"><label>Initial Status</label><select id="newVehicleStatus"><option value="Active">Active</option><option value="Maintenance">Maintenance</option></select></div></div>
-            <div class="form-actions"><button onclick="addVehicle()"><i class="fas fa-save"></i> Add Vehicle</button></div>` : '<p style="color:var(--danger);padding:10px;">Only Super Admin can add vehicles</p>'}</div>
-            <div class="card"><div class="card-title"><i class="fas fa-truck"></i> All Vehicles</div>
-            <div class="table-container"><table><thead><tr><th>Reg Number</th><th>Status</th><th>Maintenance Remark</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
-            <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div></div>`;
-    }
+    function renderVehiclesPage() { const container = document.getElementById('vehiclesContent'); if (!container) return; const canEditFlag = canEdit(); container.innerHTML = `<div class="card"><div class="card-title">Add New Vehicle</div>${canEditFlag ? `<div class="form-row"><div class="form-group"><label>Registration Number</label><input type="text" id="newVehicleReg" placeholder="e.g., KA01AB9999"></div><div class="form-group"><label>Insurance Expiry</label><input type="date" id="newVehicleInsurance"></div></div><div class="form-actions"><button onclick="addVehicle()">Add Vehicle</button></div>` : '<p>Only Admin can add vehicles</p>'}</div><div class="card"><div class="card-title">All Vehicles</div><div class="table-container"><table><thead><tr><th>Reg Number</th><th>Status</th><th>Insurance Expiry</th><th>Actions</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status === 'Active' ? 'status-active' : 'status-maintenance'}">${v.status}</span></td><td>${v.insuranceExpiry ? new Date(v.insuranceExpiry) < new Date() ? '<span class="status-badge status-expired">Expired</span>' : v.insuranceExpiry : 'Not set'}</td><td class="action-icons">${canEditFlag ? `<i class="fas fa-edit" onclick="editVehicle('${v.id}')"></i><i class="fas fa-trash-alt" onclick="deleteVehicle('${v.id}')"></i>` : ''}</td></tr>`).join('')}</tbody></table></div></div>`; }
 
-    function renderDriversPage() {
-        const container = document.getElementById('driversContent');
-        if(!container) return;
-        const canEditFlag = canEdit();
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-user-plus"></i> Add New Driver</div>
-            ${canEditFlag ? `<div class="form-row"><div class="form-group"><label>Driver Name</label><input type="text" id="newDriverName" placeholder="Full name"></div>
-            <div class="form-group"><label>License Number</label><input type="text" id="newDriverLicense" placeholder="License No"></div></div>
-            <div class="form-actions"><button onclick="addDriver()"><i class="fas fa-save"></i> Add Driver</button></div>` : '<p style="color:var(--danger);padding:10px;">Only Super Admin can add drivers</p>'}</div>
-            <div class="card"><div class="card-title"><i class="fas fa-id-card"></i> All Drivers</div>
-            <div class="table-container"><table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead>
-            <tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div></div>`;
-    }
+    function renderDriversPage() { const container = document.getElementById('driversContent'); if (!container) return; const canEditFlag = canEdit(); container.innerHTML = `<div class="card"><div class="card-title">Add New Driver</div>${canEditFlag ? `<div class="form-row"><div class="form-group"><label>Driver Name</label><input type="text" id="newDriverName"></div><div class="form-group"><label>License Number</label><input type="text" id="newDriverLicense"></div></div><button onclick="addDriver()">Add Driver</button>` : '<p>Only Admin can add drivers</p>'}</div><div class="card"><div class="card-title">All Drivers</div><div class="table-container"><table><thead><tr><th>Name</th><th>License</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div></div>`; }
 
-    function renderAssignmentsPage() {
-        const container = document.getElementById('assignmentsContent');
-        if(!container) return;
-        const today = new Date().toISOString().split('T')[0];
-        const availableVehicles = getAvailableVehicles();
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-calendar-check"></i> New Assignment</div>
-            <div class="form-row-4"><div class="form-group"><label>Select Driver</label><select id="assignDriverId">${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-            <div class="form-group"><label>Select Vehicle</label><select id="assignVehicleId">${availableVehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-            <div class="form-group"><label>Date</label><input type="date" id="assignDate" value="${today}"></div>
-            <div class="form-group"><label>Contract</label><select id="assignContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div>
-            <div class="form-group"><label>Remarks</label><input type="text" id="assignRemarks" placeholder="Optional notes"></div>
-            <div class="form-actions"><button onclick="createAssignment()"><i class="fas fa-link"></i> Create Assignment</button></div></div>
-            <div class="card"><div class="card-title"><i class="fas fa-list"></i> Assignment Records</div>
-            <div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead>
-            <tbody>${assignments.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); return `<tr><td>${a.date}</td><td>${d?.name || '?'}</td><td>${v?.reg || '?'}</td><td>${c?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>`;
-    }
+    function renderAssignmentsPage() { const container = document.getElementById('assignmentsContent'); if (!container) return; const today = new Date().toISOString().split('T')[0]; const availableVehicles = getAvailableVehicles(); container.innerHTML = `<div class="card"><div class="card-title">New Assignment</div><div class="form-row-4"><div class="form-group"><label>Driver</label><select id="assignDriverId">${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div><div class="form-group"><label>Vehicle</label><select id="assignVehicleId">${availableVehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div><div class="form-group"><label>Date</label><input type="date" id="assignDate" value="${today}"></div><div class="form-group"><label>Contract</label><select id="assignContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div><div class="form-group"><label>Remarks</label><input type="text" id="assignRemarks"></div><button onclick="createAssignment()">Create Assignment</button></div><div class="card"><div class="card-title">Assignment Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th><th>Actions</th></tr></thead><tbody>${assignments.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); return `<tr><td>${a.date}</td><td>${d?.name || '?'}</td><td>${v?.reg || '?'}</td><td>${c?.name || '?'}</td><td>${a.remarks || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>`; }
 
-    function renderMaintenancePage() {
-        const container = document.getElementById('maintenanceContent');
-        if(!container) return;
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-wrench"></i> Update Maintenance Status</div>
-            <div class="form-row"><div class="form-group"><label>Select Vehicle</label><select id="maintenanceVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg} (${v.status})</option>`).join('')}</select></div>
-            <div class="form-group"><label>Maintenance Remark</label><textarea id="maintenanceRemark" rows="2" placeholder="Describe issue or repair"></textarea></div></div>
-            <div class="form-actions"><button onclick="setMaintenance()" style="background:var(--danger)"><i class="fas fa-tools"></i> Mark as Maintenance</button>
-            <button onclick="markReady()" style="background:var(--success); margin-left:10px"><i class="fas fa-check-circle"></i> Mark as Ready</button></div></div>
-            <div class="card"><div class="card-title"><i class="fas fa-clipboard-list"></i> Fleet Status</div>
-            <div class="table-container"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th><th>Quick Action</th></tr></thead>
-            <tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px;font-size:0.8rem">🔧 Mark Maintenance</button>`}</td></tr>`).join('')}</tbody></table></div></div>`;
-    }
+    function renderMaintenancePage() { const container = document.getElementById('maintenanceContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">Update Maintenance</div><div class="form-row"><div class="form-group"><label>Vehicle</label><select id="maintenanceVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg} (${v.status})</option>`).join('')}</select></div><div class="form-group"><label>Remark</label><textarea id="maintenanceRemark" rows="2"></textarea></div></div><button onclick="setMaintenance()" style="background:var(--danger)">Mark Maintenance</button><button onclick="markReady()" style="background:var(--success)">Mark Ready</button></div><div class="card"><div class="card-title">Fleet Status</div><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Status</th><th>History</th><th>Action</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || '-'}</td><td>${v.status === 'Maintenance' ? `<button onclick="markReadyById('${v.id}')" style="padding:5px 10px">✅ Ready</button>` : `<button onclick="setMaintenanceById('${v.id}')" style="padding:5px 10px">🔧 Maintenance</button>`}</td></tr>`).join('')}</tbody></table></div></div>`; }
 
-    function renderContractsPage() {
-        const container = document.getElementById('contractsContent');
-        if(!container) return;
-        if(!canEdit()) { container.innerHTML = '<div class="card"><p style="color:var(--danger)">Only Super Admin can manage contracts</p></div>'; return; }
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-file-signature"></i> Manage Contracts</div>
-            <div class="contract-form-row"><div class="form-group"><label>New Contract Name</label><input type="text" id="newContractName" placeholder="Enter contract name"></div>
-            <button onclick="addContract()">Add Contract</button></div></div>
-            <div class="card"><div class="card-title">Existing Contracts</div>
-            <div class="table-container"><table><thead><tr><th>Contract Name</th><th>Actions</th></tr></thead>
-            <tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>`;
-    }
+    function renderFuelPage() { const container = document.getElementById('fuelContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">Add Fuel Record</div><div class="form-row-4"><div class="form-group"><label>Vehicle</label><select id="fuelVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div><div class="form-group"><label>Date</label><input type="date" id="fuelDate" value="${new Date().toISOString().split('T')[0]}"></div><div class="form-group"><label>Liters</label><input type="number" id="fuelLiters" step="0.01" placeholder="Liters"></div><div class="form-group"><label>Cost (₹)</label><input type="number" id="fuelCost" step="0.01" placeholder="Cost"></div></div><button onclick="addFuelRecord()">Add Fuel Record</button></div><div class="card"><div class="card-title">Fuel Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost (₹)</th><th>Actions</th></tr></thead><tbody>${fuelRecords.map(f => { const v = vehicles.find(vv=>vv.id===f.vehicleId); return `<tr><td>${f.date}</td><td>${v?.reg || '?'}</td><td>${f.liters}</td><td>₹${f.cost}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteFuelRecord('${f.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>`; }
 
-    function renderSupervisorsPage() {
-        const container = document.getElementById('supervisorsContent');
-        if(!container) return;
-        if(!canEdit()) { container.innerHTML = '<div class="card"><p style="color:var(--danger)">Only Super Admin can manage supervisors</p></div>'; return; }
-        container.innerHTML = `<div class="card"><div class="card-title"><i class="fas fa-users-cog"></i> Create New Supervisor</div>
-            <div class="form-row-3"><div class="form-group"><label>Email (Login ID)</label><input type="email" id="supEmail" placeholder="supervisor@example.com"></div>
-            <div class="form-group"><label>Full Name</label><input type="text" id="supName" placeholder="Full name"></div>
-            <div class="form-group"><label>Assign Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div>
-            <div class="form-actions"><button onclick="createSupervisor()"><i class="fas fa-user-plus"></i> Create Supervisor</button></div></div>
-            <div class="card"><div class="card-title"><i class="fas fa-users"></i> All Supervisors</div>
-            <div class="table-container"><table><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead>
-            <tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>`;
-    }
+    function renderExpensesPage() { const container = document.getElementById('expensesContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">Add Expense</div><div class="form-row-4"><div class="form-group"><label>Vehicle</label><select id="expenseVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div><div class="form-group"><label>Date</label><input type="date" id="expenseDate" value="${new Date().toISOString().split('T')[0]}"></div><div class="form-group"><label>Type</label><select id="expenseType"><option value="Insurance">Insurance</option><option value="Service">Service</option><option value="Repair">Repair</option><option value="Toll">Toll</option><option value="Other">Other</option></select></div><div class="form-group"><label>Amount (₹)</label><input type="number" id="expenseAmount" step="0.01"></div></div><div class="form-group"><label>Description</label><input type="text" id="expenseDesc" placeholder="Description"></div><button onclick="addExpense()">Add Expense</button></div><div class="card"><div class="card-title">Expense Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount (₹)</th><th>Description</th><th>Actions</th></tr></thead><tbody>${expenses.map(e => { const v = vehicles.find(vv=>vv.id===e.vehicleId); return `<tr><td>${e.date}</td><td>${v?.reg || '?'}</td><td>${e.type}</td><td>₹${e.amount}</td><td>${e.description || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteExpense('${e.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>`; }
 
-    // REPORTS SECTION
-    function renderReportsPage() {
-        const container = document.getElementById('reportsContent');
-        if(!container) return;
-        const today = new Date().toISOString().split('T')[0];
-        const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        container.innerHTML = `<div class="page-header"><h1><i class="fas fa-chart-line"></i> Reports Dashboard</h1><p>View and export maintenance records, assignment reports, and fleet summary</p></div>
-            <div class="report-tabs"><button class="report-tab-btn active" onclick="switchReportTab('assignments')"><i class="fas fa-tasks"></i> Assignment Reports</button>
-            <button class="report-tab-btn" onclick="switchReportTab('maintenance')"><i class="fas fa-wrench"></i> Maintenance Records</button>
-            <button class="report-tab-btn" onclick="switchReportTab('fleet')"><i class="fas fa-truck"></i> Fleet Summary</button></div>
-            <div id="assignmentsReportPanel" class="report-panel active"><div class="card"><div class="card-title"><i class="fas fa-filter"></i> Filter Assignment Reports</div>
-            <div class="filter-row"><div class="form-group"><label>From Date</label><input type="date" id="assignFromDate" value="${lastWeek}"></div>
-            <div class="form-group"><label>To Date</label><input type="date" id="assignToDate" value="${today}"></div>
-            <div class="form-group"><label>Vehicle Reg</label><input type="text" id="assignVehicleFilter" placeholder="Search vehicle"></div>
-            <div class="form-group"><label>Driver Name</label><input type="text" id="assignDriverFilter" placeholder="Search driver"></div>
-            <button onclick="filterAssignmentReport()"><i class="fas fa-search"></i> Apply</button>
-            <button onclick="resetAssignmentReport()"><i class="fas fa-undo"></i> Reset</button></div>
-            <div id="assignmentReportTable"></div><div class="form-actions" style="margin-top:20px;"><button onclick="exportAssignmentToExcel()"><i class="fas fa-file-excel"></i> Export to Excel</button>
-            <button onclick="exportAssignmentToPDF()"><i class="fas fa-file-pdf"></i> Export to PDF</button></div></div></div>
-            <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="card-title"><i class="fas fa-filter"></i> Filter Maintenance Records</div>
-            <div class="filter-row"><div class="form-group"><label>From Date</label><input type="date" id="maintenanceFromDate" value="${lastWeek}"></div>
-            <div class="form-group"><label>To Date</label><input type="date" id="maintenanceToDate" value="${today}"></div>
-            <div class="form-group"><label>Vehicle Reg</label><input type="text" id="maintenanceVehicleFilter" placeholder="Search vehicle"></div>
-            <div class="form-group"><label>Status</label><select id="maintenanceStatusFilter"><option value="all">All</option><option value="Active">Active</option><option value="Maintenance">Maintenance</option></select></div>
-            <button onclick="filterMaintenanceReport()"><i class="fas fa-search"></i> Apply</button>
-            <button onclick="resetMaintenanceReport()"><i class="fas fa-undo"></i> Reset</button></div>
-            <div id="maintenanceReportTable"></div><div class="form-actions" style="margin-top:20px;"><button onclick="exportMaintenanceToExcel()"><i class="fas fa-file-excel"></i> Export to Excel</button>
-            <button onclick="exportMaintenanceToPDF()"><i class="fas fa-file-pdf"></i> Export to PDF</button></div></div></div>
-            <div id="fleetReportPanel" class="report-panel"><div class="card"><div class="card-title"><i class="fas fa-chart-pie"></i> Fleet Summary Report</div>
-            <div id="fleetSummaryTable"></div><div class="form-actions" style="margin-top:20px;"><button onclick="exportFleetToExcel()"><i class="fas fa-file-excel"></i> Export to Excel</button>
-            <button onclick="exportFleetToPDF()"><i class="fas fa-file-pdf"></i> Export to PDF</button></div></div></div>`;
-        filterAssignmentReport(); filterMaintenanceReport(); renderFleetSummary();
-    }
+    function renderInsurancePage() { const container = document.getElementById('insuranceContent'); if (!container) return; const today = new Date().toISOString().split('T')[0]; const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; container.innerHTML = `<div class="card"><div class="card-title">Update Insurance</div><div class="form-row"><div class="form-group"><label>Vehicle</label><select id="insuranceVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div><div class="form-group"><label>Expiry Date</label><input type="date" id="insuranceExpiryDate"></div></div><button onclick="updateInsurance()">Update Insurance</button></div><div class="card"><div class="card-title">Insurance Status</div><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Expiry Date</th><th>Status</th><th>Days Left</th></tr></thead><tbody>${vehicles.map(v => { const expiry = v.insuranceExpiry; let status = '', daysLeft = ''; if (!expiry) { status = 'Not Set'; daysLeft = '-'; } else { const diffDays = Math.ceil((new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24)); if (diffDays < 0) { status = '<span class="status-badge status-expired">EXPIRED</span>'; daysLeft = 'Expired'; } else if (diffDays <= 30) { status = '<span class="status-badge status-warning">Expiring Soon</span>'; daysLeft = `${diffDays} days`; } else { status = '<span class="status-badge status-active">Active</span>'; daysLeft = `${diffDays} days`; } } return `<tr><td>${v.reg}</td><td>${expiry || '-'}</td><td>${status}</td><td>${daysLeft}</td></tr>`; }).join('')}</tbody></tr></div></div>`; }
 
-    function switchReportTab(tab) {
-        document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`${tab}ReportPanel`).classList.add('active');
-        document.querySelector(`.report-tab-btn[onclick="switchReportTab('${tab}')"]`).classList.add('active');
-        if (tab === 'assignments') filterAssignmentReport();
-        else if (tab === 'maintenance') filterMaintenanceReport();
-        else if (tab === 'fleet') renderFleetSummary();
-    }
+    function renderDocumentsPage() { const container = document.getElementById('documentsContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">Upload Document</div><div class="form-row-3"><div class="form-group"><label>Document Type</label><select id="docType"><option value="RC">RC Document</option><option value="Insurance">Insurance Document</option><option value="Driver License">Driver License</option><option value="Other">Other</option></select></div><div class="form-group"><label>Associated With</label><select id="docAssociated"><option value="vehicle">Vehicle</option><option value="driver">Driver</option></select></div><div class="form-group"><label>Select ID</label><select id="docAssociatedId">${vehicles.map(v => `<option value="v_${v.id}">Vehicle: ${v.reg}</option>`).join('')}${drivers.map(d => `<option value="d_${d.id}">Driver: ${d.name}</option>`).join('')}</select></div></div><div class="form-group"><label>File</label><input type="file" id="docFile" accept="image/*,.pdf"></div><div class="form-group"><label>Remarks</label><input type="text" id="docRemarks" placeholder="Additional info"></div><button onclick="uploadDocument()">Upload Document</button></div><div class="card"><div class="card-title">Documents</div><div class="table-container"><tr><thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Remarks</th><th>Preview</th><th>Actions</th></tr></thead><tbody>${documents.map(d => `<tr><td>${d.date}</td><td>${d.type}</td><td>${d.associatedName || d.associatedId}</td><td>${d.remarks || '-'}</td><td>${d.dataUrl ? `<img src="${d.dataUrl}" class="document-preview" onclick="window.open('${d.dataUrl}')">` : '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteDocument('${d.id}')"></i></td></tr>`).join('')}</tbody>...</div></div>`; }
 
-    function filterAssignmentReport() {
-        const fromDate = document.getElementById('assignFromDate')?.value || '';
-        const toDate = document.getElementById('assignToDate')?.value || '';
-        const vehicleFilter = document.getElementById('assignVehicleFilter')?.value.toLowerCase() || '';
-        const driverFilter = document.getElementById('assignDriverFilter')?.value.toLowerCase() || '';
-        let filtered = [...assignments];
-        if (fromDate) filtered = filtered.filter(a => a.date >= fromDate);
-        if (toDate) filtered = filtered.filter(a => a.date <= toDate);
-        filtered = filtered.filter(a => { const v = vehicles.find(vv=>vv.id===a.vehicleId); const d = drivers.find(dd=>dd.id===a.driverId); return (v?.reg.toLowerCase().includes(vehicleFilter)) && (d?.name.toLowerCase().includes(driverFilter)); });
-        filtered.sort((a, b) => b.date.localeCompare(a.date));
-        const reportDiv = document.getElementById('assignmentReportTable');
-        if(reportDiv) {
-            if (filtered.length === 0) reportDiv.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray)">No assignment records found</div>';
-            else reportDiv.innerHTML = `<div class="table-container"><table><thead><tr><th>Date</th><th>Driver Name</th><th>Vehicle Reg</th><th>Contract</th><th>Remarks</th></table></thead><tbody>${filtered.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); return `<tr><td>${a.date}</td><td>${d?.name || '-'}</td><td>${v?.reg || '-'}</td><td>${c?.name || '-'}</td><td>${a.remarks || '-'}<tr></tr>`; }).join('')}</tbody>...</div>`;
-        }
-    }
-    function resetAssignmentReport() {
-        const today = new Date().toISOString().split('T')[0];
-        const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        if (document.getElementById('assignFromDate')) document.getElementById('assignFromDate').value = lastWeek;
-        if (document.getElementById('assignToDate')) document.getElementById('assignToDate').value = today;
-        if (document.getElementById('assignVehicleFilter')) document.getElementById('assignVehicleFilter').value = '';
-        if (document.getElementById('assignDriverFilter')) document.getElementById('assignDriverFilter').value = '';
-        filterAssignmentReport();
-    }
-    function filterMaintenanceReport() {
-        const vehicleFilter = document.getElementById('maintenanceVehicleFilter')?.value.toLowerCase() || '';
-        const statusFilter = document.getElementById('maintenanceStatusFilter')?.value || 'all';
-        let filtered = [...vehicles];
-        if (vehicleFilter) filtered = filtered.filter(v => v.reg.toLowerCase().includes(vehicleFilter));
-        if (statusFilter !== 'all') filtered = filtered.filter(v => v.status === statusFilter);
-        const reportDiv = document.getElementById('maintenanceReportTable');
-        if(reportDiv) {
-            if (filtered.length === 0) reportDiv.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray)">No maintenance records found</div>';
-            else reportDiv.innerHTML = `<div class="table-container"><table><thead><tr><th>Vehicle Reg</th><th>Current Status</th><th>Maintenance History / Remarks</th></tr></thead><tbody>${filtered.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || 'No maintenance history'}</td></tr>`).join('')}</tbody></tr></div>`;
-        }
-    }
-    function resetMaintenanceReport() {
-        if (document.getElementById('maintenanceVehicleFilter')) document.getElementById('maintenanceVehicleFilter').value = '';
-        if (document.getElementById('maintenanceStatusFilter')) document.getElementById('maintenanceStatusFilter').value = 'all';
-        filterMaintenanceReport();
-    }
-    function renderFleetSummary() {
-        const activeVehicles = vehicles.filter(v => v.status === 'Active').length;
-        const maintenanceVehicles = vehicles.filter(v => v.status === 'Maintenance').length;
-        const todayAssignments = assignments.filter(a => a.date === new Date().toISOString().split('T')[0]).length;
-        const reportDiv = document.getElementById('fleetSummaryTable');
-        if(reportDiv) reportDiv.innerHTML = `<div class="grid-3"><div class="card"><h3>Total Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${activeVehicles} | Maintenance: ${maintenanceVehicles}</p></div>
-            <div class="card"><h3>Total Drivers</h3><p style="font-size:2rem;font-weight:bold">${drivers.length}</p></div>
-            <div class="card"><h3>Today's Assignments</h3><p style="font-size:2rem;font-weight:bold">${todayAssignments}</p></div>
-            <div class="card"><h3>Total Contracts</h3><p style="font-size:2rem;font-weight:bold">${contracts.length}</p></div>
-            <div class="card"><h3>Total Supervisors</h3><p style="font-size:2rem;font-weight:bold">${supervisors.length}</p></div>
-            <div class="card"><h3>Total Assignments</h3><p style="font-size:2rem;font-weight:bold">${assignments.length}</p></div></div>`;
-    }
+    function renderActivityPage() { const container = document.getElementById('activityContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">User Activity Log</div><div class="table-container"><table><thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>${activityLog.slice(0, 200).map(log => `<tr><td>${new Date(log.timestamp).toLocaleString()}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td></tr>`).join('')}</tbody>...</div><button onclick="clearActivityLog()" style="background:var(--danger);margin-top:10px">Clear Log</button></div>`; }
 
-    function exportAssignmentToExcel() {
-        const fromDate = document.getElementById('assignFromDate')?.value || '';
-        const toDate = document.getElementById('assignToDate')?.value || '';
-        let filtered = [...assignments];
-        if (fromDate) filtered = filtered.filter(a => a.date >= fromDate);
-        if (toDate) filtered = filtered.filter(a => a.date <= toDate);
-        const wsData = filtered.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks }));
-        const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments");
-        XLSX.writeFile(wb, `Assignment_Report_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Assignment report exported");
-    }
-    function exportAssignmentToPDF() { const element = document.querySelector('#assignmentReportTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`Assignment_Report.pdf` }).save(); }
-    function exportMaintenanceToExcel() {
-        const wsData = vehicles.map(v => ({ Vehicle: v.reg, Status: v.status, Maintenance_History: v.maintenanceRemark || 'None' }));
-        const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Maintenance");
-        XLSX.writeFile(wb, `Maintenance_Report_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Maintenance report exported");
-    }
-    function exportMaintenanceToPDF() { const element = document.querySelector('#maintenanceReportTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`Maintenance_Report.pdf` }).save(); }
-    function exportFleetToExcel() {
-        const wsData = [{ Metric: 'Total Vehicles', Value: vehicles.length }, { Metric: 'Active Vehicles', Value: vehicles.filter(v=>v.status==='Active').length }, { Metric: 'Maintenance Vehicles', Value: vehicles.filter(v=>v.status==='Maintenance').length }, { Metric: 'Total Drivers', Value: drivers.length }, { Metric: 'Total Assignments', Value: assignments.length }, { Metric: 'Today\'s Assignments', Value: assignments.filter(a=>a.date===new Date().toISOString().split('T')[0]).length }, { Metric: 'Total Contracts', Value: contracts.length }, { Metric: 'Total Supervisors', Value: supervisors.length }];
-        const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "FleetSummary");
-        XLSX.writeFile(wb, `Fleet_Summary_${new Date().toISOString().slice(0,10)}.xlsx`); notify("Fleet summary exported");
-    }
-    function exportFleetToPDF() { const element = document.querySelector('#fleetSummaryTable'); if(element) html2pdf().from(element).set({ margin:0.5, filename:`Fleet_Summary.pdf` }).save(); }
+    function renderBackupPage() { const container = document.getElementById('backupContent'); if (!container) return; container.innerHTML = `<div class="card"><div class="card-title">Backup & Restore</div><p>Export all data as JSON file or restore from backup.</p><div class="backup-actions"><button onclick="exportBackup()" class="btn-info"><i class="fas fa-download"></i> Export Backup</button><button onclick="importBackup()" class="btn-success"><i class="fas fa-upload"></i> Import Backup</button><input type="file" id="backupFile" accept=".json" style="display:none" onchange="restoreBackup(this)"></div></div>`; }
 
-    function renderDashboardPage() {
-        const container = document.getElementById('dashboardContent');
-        if(!container) return;
-        container.innerHTML = `<div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.email || 'User'} ${canEdit() ? '(Super Admin)' : '(Supervisor)'}</p></div>
-            ${globalNotice ? `<div class="card" style="background:var(--warning);color:var(--dark)"><i class="fas fa-bullhorn"></i> ${globalNotice}</div>` : ''}
-            <div class="grid-3"><div class="card"><h3><i class="fas fa-truck"></i> Vehicles</h3><p style="font-size:2rem;font-weight:bold">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div>
-            <div class="card"><h3><i class="fas fa-id-card"></i> Drivers</h3><p style="font-size:2rem;font-weight:bold">${drivers.length}</p></div>
-            <div class="card"><h3><i class="fas fa-calendar-check"></i> Today's Assignments</h3><p style="font-size:2rem;font-weight:bold">${assignments.filter(a=>a.date === new Date().toISOString().split('T')[0]).length}</p></div></div>`;
-    }
+    function renderReportsPage() { const container = document.getElementById('reportsContent'); if (!container) return; const today = new Date().toISOString().split('T')[0]; const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; container.innerHTML = `<div class="report-tabs"><button class="report-tab-btn active" onclick="switchReportTab('assignments')">Assignment Report</button><button class="report-tab-btn" onclick="switchReportTab('fuel')">Fuel Report</button><button class="report-tab-btn" onclick="switchReportTab('expense')">Expense Report</button><button class="report-tab-btn" onclick="switchReportTab('maintenance')">Maintenance Report</button></div>
+        <div id="assignmentsReportPanel" class="report-panel active"><div class="card"><div class="filter-row"><div class="form-group"><label>From</label><input type="date" id="assignFromDate" value="${lastWeek}"></div><div class="form-group"><label>To</label><input type="date" id="assignToDate" value="${today}"></div><button onclick="filterAssignmentReport()">Apply</button><button onclick="exportAssignmentPDF()">Export PDF</button><button onclick="exportAssignmentExcel()">Export Excel</button></div><div id="assignmentReportTable"></div></div></div>
+        <div id="fuelReportPanel" class="report-panel"><div class="card"><div class="filter-row"><div class="form-group"><label>From</label><input type="date" id="fuelFromDate" value="${lastWeek}"></div><div class="form-group"><label>To</label><input type="date" id="fuelToDate" value="${today}"></div><button onclick="filterFuelReport()">Apply</button><button onclick="exportFuelPDF()">Export PDF</button><button onclick="exportFuelExcel()">Export Excel</button></div><div id="fuelReportTable"></div></div></div>
+        <div id="expenseReportPanel" class="report-panel"><div class="card"><div class="filter-row"><div class="form-group"><label>From</label><input type="date" id="expenseFromDate" value="${lastWeek}"></div><div class="form-group"><label>To</label><input type="date" id="expenseToDate" value="${today}"></div><button onclick="filterExpenseReport()">Apply</button><button onclick="exportExpensePDF()">Export PDF</button><button onclick="exportExpenseExcel()">Export Excel</button></div><div id="expenseReportTable"></div></div></div>
+        <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="filter-row"><button onclick="filterMaintenanceReport()">Refresh</button><button onclick="exportMaintenancePDF()">Export PDF</button><button onclick="exportMaintenanceExcel()">Export Excel</button></div><div id="maintenanceReportTable"></div></div></div>`;
+        filterAssignmentReport(); filterFuelReport(); filterExpenseReport(); filterMaintenanceReport(); }
+
+    function renderDashboardPage() { const container = document.getElementById('dashboardContent'); if (!container) return; const totalFuelCost = fuelRecords.reduce((sum, f) => sum + (f.cost || 0), 0); const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0); container.innerHTML = `<div class="page-header"><h1>Dashboard</h1><p>Welcome ${currentUser?.email || 'User'} ${canEdit() ? '(Admin)' : '(Supervisor)'}</p></div>${globalNotice ? `<div class="card" style="background:var(--warning)">${globalNotice}</div>` : ''}<div class="grid-3"><div class="card"><h3>Vehicles</h3><p style="font-size:2rem">${vehicles.length}</p><p>Active: ${vehicles.filter(v=>v.status==='Active').length} | Maintenance: ${vehicles.filter(v=>v.status==='Maintenance').length}</p></div><div class="card"><h3>Drivers</h3><p style="font-size:2rem">${drivers.length}</p></div><div class="card"><h3>Today's Assignments</h3><p style="font-size:2rem">${assignments.filter(a=>a.date===new Date().toISOString().split('T')[0]).length}</p></div><div class="card"><h3>Fuel Cost (Total)</h3><p style="font-size:2rem">₹${totalFuelCost.toLocaleString()}</p></div><div class="card"><h3>Expenses (Total)</h3><p style="font-size:2rem">₹${totalExpense.toLocaleString()}</p></div><div class="card"><h3>Documents</h3><p style="font-size:2rem">${documents.length}</p></div></div>`; }
+
+    function renderContractsPage() { const container = document.getElementById('contractsContent'); if (!container || !canEdit()) return; container.innerHTML = `<div class="card"><div class="card-title">Manage Contracts</div><div class="contract-form-row"><div class="form-group"><label>New Contract</label><input type="text" id="newContractName"></div><button onclick="addContract()">Add Contract</button></div></div><div class="card"><div class="card-title">Existing Contracts</div><div class="table-container"><table><thead><tr><th>Name</th><th>Actions</th></tr></thead><tbody>${contracts.map(c => `<tr><td>${c.name}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteContract('${c.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>`; }
+
+    function renderSupervisorsPage() { const container = document.getElementById('supervisorsContent'); if (!container || !canEdit()) return; container.innerHTML = `<div class="card"><div class="card-title">Create Supervisor</div><div class="form-row-3"><div class="form-group"><label>Email</label><input type="email" id="supEmail"></div><div class="form-group"><label>Name</label><input type="text" id="supName"></div><div class="form-group"><label>Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div><button onclick="createSupervisor()">Create Supervisor</button></div><div class="card"><div class="card-title">All Supervisors</div><div class="table-container"><tr><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Actions</th></tr></thead><tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email || s.mobile}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody>...</div></div>`; }
 
     // CRUD Operations
-    window.addVehicle = async () => { if(!canEdit()) return; const reg = document.getElementById('newVehicleReg')?.value; if(!reg) return; const newVehicle = { reg, status: document.getElementById('newVehicleStatus')?.value, maintenanceRemark: '' }; const id = await saveToFirestore('vehicles', newVehicle); if(id) { vehicles.push({ id, ...newVehicle }); renderAllPages(); notify("Vehicle added"); } };
-    window.editVehicle = async (id) => { if(!canEdit()) return; const newReg = prompt("New Registration Number:"); if(newReg) { await updateInFirestore('vehicles', id, { reg: newReg }); const v = vehicles.find(v=>v.id===id); if(v) v.reg = newReg; renderAllPages(); notify("Updated"); } };
-    window.deleteVehicle = async (id) => { if(!canEdit()) return; await deleteFromFirestore('vehicles', id); vehicles = vehicles.filter(v=>v.id !== id); renderAllPages(); notify("Deleted"); };
-    window.addDriver = async () => { if(!canEdit()) return; const name = document.getElementById('newDriverName')?.value; if(!name) return; const newDriver = { name, license: document.getElementById('newDriverLicense')?.value }; const id = await saveToFirestore('drivers', newDriver); if(id) { drivers.push({ id, ...newDriver }); renderAllPages(); notify("Driver added"); } };
-    window.editDriver = async (id) => { if(!canEdit()) return; const newName = prompt("New Driver Name:"); if(newName) { await updateInFirestore('drivers', id, { name: newName }); const d = drivers.find(d=>d.id===id); if(d) d.name = newName; renderAllPages(); notify("Updated"); } };
-    window.deleteDriver = async (id) => { if(!canEdit()) return; await deleteFromFirestore('drivers', id); drivers = drivers.filter(d=>d.id !== id); renderAllPages(); notify("Deleted"); };
-    window.createAssignment = async () => { const driverId = document.getElementById('assignDriverId')?.value; const vehicleId = document.getElementById('assignVehicleId')?.value; if(!driverId || !vehicleId) return; const newAssign = { date: document.getElementById('assignDate')?.value, driverId, vehicleId, contractId: document.getElementById('assignContractId')?.value, remarks: document.getElementById('assignRemarks')?.value }; const id = await saveToFirestore('assignments', newAssign); if(id) { assignments.push({ id, ...newAssign }); renderAllPages(); notify("Assigned"); } };
-    window.deleteAssignment = async (id) => { await deleteFromFirestore('assignments', id); assignments = assignments.filter(a=>a.id !== id); renderAllPages(); notify("Deleted"); };
-    window.setMaintenance = async () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const remark = document.getElementById('maintenanceRemark')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { await updateInFirestore('vehicles', vehicleId, { status: 'Maintenance', maintenanceRemark: remark }); vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; renderAllPages(); notify("In Maintenance"); } };
-    window.markReady = async () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if(vehicle) { await updateInFirestore('vehicles', vehicleId, { status: 'Active', maintenanceRemark: vehicle.maintenanceRemark + " | Repaired" }); vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Repaired"; renderAllPages(); notify("Ready"); } };
-    window.markReadyById = async (id) => { const vehicle = vehicles.find(v=>v.id === id); if(vehicle) { await updateInFirestore('vehicles', id, { status: 'Active', maintenanceRemark: vehicle.maintenanceRemark + " | Ready" }); vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Ready"; renderAllPages(); notify(`${vehicle.reg} ready`); } };
-    window.setMaintenanceById = async (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if(vehicle && remark) { await updateInFirestore('vehicles', id, { status: 'Maintenance', maintenanceRemark: remark }); vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; renderAllPages(); notify("In Maintenance"); } };
-    window.addContract = async () => { if(!canEdit()) return; const name = document.getElementById('newContractName')?.value; if(name) { const id = await saveToFirestore('contracts', { name }); if(id) { contracts.push({ id, name }); renderAllPages(); notify("Contract added"); } } };
-    window.deleteContract = async (id) => { if(!canEdit()) return; await deleteFromFirestore('contracts', id); contracts = contracts.filter(c=>c.id !== id); renderAllPages(); };
-    window.createSupervisor = async () => { if(!canEdit()) return; const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if(email && name) { const tempPassword = Math.random().toString(36).slice(-8); try { const userCred = await createUserWithEmailAndPassword(auth, email, tempPassword); const supData = { email, name, password: tempPassword, contractId: document.getElementById('supContractId')?.value, uid: userCred.user.uid }; const id = await saveToFirestore('supervisors', supData); if(id) { supervisors.push({ id, ...supData }); renderAllPages(); notify(`✅ Supervisor ${name} created! Password: ${tempPassword}`); } } catch(e) { notify("Error: " + e.message); } } else notify("Fill all fields"); };
-    window.deleteSupervisor = async (id) => { if(!canEdit()) return; const sup = supervisors.find(s=>s.id===id); if(sup && sup.uid) { try { await deleteFromFirestore('supervisors', id); supervisors = supervisors.filter(s=>s.id !== id); renderAllPages(); notify("Deleted"); } catch(e) { notify("Error deleting"); } } };
-    window.updateGlobalNotice = async () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; if(window.db) await setDoc(doc(db, 'settings', 'globalNotice'), { value: globalNotice }); renderAllPages(); notify("Notice updated"); };
-    
+    window.addVehicle = () => { if (!canEdit()) return; const reg = document.getElementById('newVehicleReg')?.value; if (!reg) return; vehicles.push({ id: Date.now().toString(), reg, status: 'Active', maintenanceRemark: '', insuranceExpiry: document.getElementById('newVehicleInsurance')?.value }); saveToLocalStorage(); logActivity("Vehicle Added", reg); renderAllPages(); notify("Vehicle added"); };
+    window.editVehicle = (id) => { if (!canEdit()) return; const newReg = prompt("New Registration:"); if (newReg) { const v = vehicles.find(v=>v.id===id); if (v) v.reg = newReg; saveToLocalStorage(); logActivity("Vehicle Edited", newReg); renderAllPages(); } };
+    window.deleteVehicle = (id) => { if (!canEdit()) return; vehicles = vehicles.filter(v=>v.id !== id); saveToLocalStorage(); logActivity("Vehicle Deleted", id); renderAllPages(); };
+    window.addDriver = () => { if (!canEdit()) return; const name = document.getElementById('newDriverName')?.value; if (!name) return; drivers.push({ id: Date.now().toString(), name, license: document.getElementById('newDriverLicense')?.value }); saveToLocalStorage(); logActivity("Driver Added", name); renderAllPages(); };
+    window.editDriver = (id) => { if (!canEdit()) return; const newName = prompt("New Name:"); if (newName) { const d = drivers.find(d=>d.id===id); if (d) d.name = newName; saveToLocalStorage(); logActivity("Driver Edited", newName); renderAllPages(); } };
+    window.deleteDriver = (id) => { if (!canEdit()) return; drivers = drivers.filter(d=>d.id !== id); saveToLocalStorage(); logActivity("Driver Deleted", id); renderAllPages(); };
+    window.createAssignment = () => { const driverId = document.getElementById('assignDriverId')?.value; const vehicleId = document.getElementById('assignVehicleId')?.value; if (!driverId || !vehicleId) return; assignments.push({ id: Date.now().toString(), date: document.getElementById('assignDate')?.value, driverId, vehicleId, contractId: document.getElementById('assignContractId')?.value, remarks: document.getElementById('assignRemarks')?.value }); saveToLocalStorage(); logActivity("Assignment Created", `Driver:${driverId} Vehicle:${vehicleId}`); renderAllPages(); notify("Assigned"); };
+    window.deleteAssignment = (id) => { assignments = assignments.filter(a=>a.id !== id); saveToLocalStorage(); logActivity("Assignment Deleted", id); renderAllPages(); };
+    window.setMaintenance = () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if (vehicle) { vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = document.getElementById('maintenanceRemark')?.value; saveToLocalStorage(); logActivity("Maintenance Marked", vehicle.reg); renderAllPages(); } };
+    window.markReady = () => { const vehicleId = document.getElementById('maintenanceVehicleId')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if (vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Repaired"; saveToLocalStorage(); logActivity("Vehicle Ready", vehicle.reg); renderAllPages(); } };
+    window.markReadyById = (id) => { const vehicle = vehicles.find(v=>v.id === id); if (vehicle) { vehicle.status = 'Active'; vehicle.maintenanceRemark += " | Ready"; saveToLocalStorage(); logActivity("Vehicle Ready", vehicle.reg); renderAllPages(); } };
+    window.setMaintenanceById = (id) => { const remark = prompt("Maintenance remark:"); const vehicle = vehicles.find(v=>v.id === id); if (vehicle && remark) { vehicle.status = 'Maintenance'; vehicle.maintenanceRemark = remark; saveToLocalStorage(); logActivity("Maintenance Marked", vehicle.reg); renderAllPages(); } };
+    window.addFuelRecord = () => { const vehicleId = document.getElementById('fuelVehicleId')?.value; const date = document.getElementById('fuelDate')?.value; const liters = parseFloat(document.getElementById('fuelLiters')?.value); const cost = parseFloat(document.getElementById('fuelCost')?.value); if (!vehicleId || !liters || !cost) return; fuelRecords.push({ id: Date.now().toString(), date, vehicleId, liters, cost }); saveToLocalStorage(); logActivity("Fuel Record Added", `Vehicle:${vehicleId} Liters:${liters} Cost:${cost}`); renderAllPages(); notify("Fuel record added"); };
+    window.deleteFuelRecord = (id) => { fuelRecords = fuelRecords.filter(f=>f.id !== id); saveToLocalStorage(); logActivity("Fuel Record Deleted", id); renderAllPages(); };
+    window.addExpense = () => { const vehicleId = document.getElementById('expenseVehicleId')?.value; const date = document.getElementById('expenseDate')?.value; const type = document.getElementById('expenseType')?.value; const amount = parseFloat(document.getElementById('expenseAmount')?.value); const desc = document.getElementById('expenseDesc')?.value; if (!vehicleId || !amount) return; expenses.push({ id: Date.now().toString(), date, vehicleId, type, amount, description: desc }); saveToLocalStorage(); logActivity("Expense Added", `Vehicle:${vehicleId} Amount:${amount}`); renderAllPages(); notify("Expense added"); };
+    window.deleteExpense = (id) => { expenses = expenses.filter(e=>e.id !== id); saveToLocalStorage(); logActivity("Expense Deleted", id); renderAllPages(); };
+    window.updateInsurance = () => { const vehicleId = document.getElementById('insuranceVehicleId')?.value; const expiry = document.getElementById('insuranceExpiryDate')?.value; const vehicle = vehicles.find(v=>v.id === vehicleId); if (vehicle && expiry) { vehicle.insuranceExpiry = expiry; saveToLocalStorage(); logActivity("Insurance Updated", `${vehicle.reg} expires ${expiry}`); renderAllPages(); notify("Insurance updated"); } };
+    window.uploadDocument = () => { const fileInput = document.getElementById('docFile'); const file = fileInput.files[0]; if (!file) { notify("Select a file"); return; } const reader = new FileReader(); reader.onload = (e) => { const doc = { id: Date.now().toString(), date: new Date().toISOString().split('T')[0], type: document.getElementById('docType').value, associatedId: document.getElementById('docAssociatedId').value, associatedName: document.getElementById('docAssociatedId').selectedOptions[0]?.text, remarks: document.getElementById('docRemarks').value, dataUrl: e.target.result }; documents.push(doc); saveToLocalStorage(); logActivity("Document Uploaded", doc.type); renderAllPages(); notify("Document uploaded"); }; reader.readAsDataURL(file); };
+    window.deleteDocument = (id) => { documents = documents.filter(d=>d.id !== id); saveToLocalStorage(); logActivity("Document Deleted", id); renderAllPages(); };
+    window.clearActivityLog = () => { if (confirm("Clear all activity logs?")) { activityLog = []; saveToLocalStorage(); logActivity("Activity Log Cleared", "All logs cleared"); renderAllPages(); notify("Log cleared"); } };
+    window.addContract = () => { const name = document.getElementById('newContractName')?.value; if (name) { contracts.push({ id: Date.now().toString(), name }); saveToLocalStorage(); logActivity("Contract Added", name); renderAllPages(); } };
+    window.deleteContract = (id) => { contracts = contracts.filter(c=>c.id !== id); saveToLocalStorage(); logActivity("Contract Deleted", id); renderAllPages(); };
+    window.createSupervisor = () => { const email = document.getElementById('supEmail')?.value; const name = document.getElementById('supName')?.value; if (email && name) { supervisors.push({ id: Date.now().toString(), email, name, password: "1234", contractId: document.getElementById('supContractId')?.value }); saveToLocalStorage(); logActivity("Supervisor Created", name); renderAllPages(); notify(`Supervisor ${name} created! Password: 1234`); } };
+    window.deleteSupervisor = (id) => { supervisors = supervisors.filter(s=>s.id !== id); saveToLocalStorage(); logActivity("Supervisor Deleted", id); renderAllPages(); };
+    window.updateGlobalNotice = () => { globalNotice = document.getElementById('globalNoticeEditor')?.value || ''; saveToLocalStorage(); logActivity("Notice Updated", globalNotice); renderAllPages(); };
+    window.exportBackup = () => { const data = { vehicles, drivers, contracts, assignments, supervisors, fuelRecords, expenses, documents, globalNotice }; const json = JSON.stringify(data, null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `speedel_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); notify("Backup exported"); logActivity("Backup Exported", "Data backup created"); };
+    window.importBackup = () => { document.getElementById('backupFile').click(); };
+    window.restoreBackup = (input) => { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); vehicles = data.vehicles || vehicles; drivers = data.drivers || drivers; contracts = data.contracts || contracts; assignments = data.assignments || assignments; supervisors = data.supervisors || supervisors; fuelRecords = data.fuelRecords || []; expenses = data.expenses || []; documents = data.documents || []; globalNotice = data.globalNotice || ''; saveToLocalStorage(); logActivity("Backup Restored", "Data restored from backup"); renderAllPages(); notify("Backup restored successfully!"); } catch(err) { notify("Invalid backup file"); } }; reader.readAsText(file); };
     window.toggleTheme = () => { document.body.classList.toggle('dark'); localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light'); };
     window.showPage = (pageId) => { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId)?.classList.add('active'); };
-    window.switchReportTab = switchReportTab;
-    window.filterAssignmentReport = filterAssignmentReport; window.resetAssignmentReport = resetAssignmentReport;
-    window.filterMaintenanceReport = filterMaintenanceReport; window.resetMaintenanceReport = resetMaintenanceReport;
-    window.exportAssignmentToExcel = exportAssignmentToExcel; window.exportAssignmentToPDF = exportAssignmentToPDF;
-    window.exportMaintenanceToExcel = exportMaintenanceToExcel; window.exportMaintenanceToPDF = exportMaintenanceToPDF;
-    window.exportFleetToExcel = exportFleetToExcel; window.exportFleetToPDF = exportFleetToPDF;
 
-    async function handleLogin(email, password) {
-        try { const userCred = await signInWithEmailAndPassword(auth, email, password); const user = userCred.user;
-            if(email === 'harishspeedel@gmail.com') { currentUser = user; userRole = 'admin'; userData = { displayName: 'Harish Admin' }; }
-            else { const q = query(collection(db, 'supervisors'), where('email', '==', email)); const snapshot = await getDocs(q);
-                if(!snapshot.empty) { currentUser = user; userRole = 'supervisor'; userData = snapshot.docs[0].data(); } else { await signOut(auth); return false; } }
-            saveUserSession(currentUser, userRole, userData);
-            document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0];
-            await loadFirestoreData(); return true;
-        } catch(e) { return false; }
-    }
-    function handleLogout() { signOut(auth); currentUser = null; userRole = null; saveUserSession(null, null, null); document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appContainer').style.display = 'none'; }
-    async function setupFirstAdmin() { try { await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055'); console.log("Admin account created"); } catch(e) { if(e.code !== 'auth/email-already-in-use') console.log("Admin setup:", e.message); } }
-    
+    // Report functions
+    window.filterAssignmentReport = () => { const from = document.getElementById('assignFromDate')?.value || ''; const to = document.getElementById('assignToDate')?.value || ''; let filtered = assignments; if (from) filtered = filtered.filter(a => a.date >= from); if (to) filtered = filtered.filter(a => a.date <= to); const html = `<table class="table"><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Remarks</th></tr></thead><tbody>${filtered.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); return `<tr><td>${a.date}</td><td>${d?.name || '-'}</td><td>${v?.reg || '-'}</td><td>${c?.name || '-'}</td><td>${a.remarks || '-'}</td></tr>`; }).join('')}</tbody></table>`; document.getElementById('assignmentReportTable').innerHTML = html; };
+    window.filterFuelReport = () => { const from = document.getElementById('fuelFromDate')?.value || ''; const to = document.getElementById('fuelToDate')?.value || ''; let filtered = fuelRecords; if (from) filtered = filtered.filter(f => f.date >= from); if (to) filtered = filtered.filter(f => f.date <= to); const html = `<table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost (₹)</th></tr></thead><tbody>${filtered.map(f => { const v = vehicles.find(vv=>vv.id===f.vehicleId); return `<tr><td>${f.date}</td><td>${v?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`; }).join('')}</tbody></table>`; document.getElementById('fuelReportTable').innerHTML = html; };
+    window.filterExpenseReport = () => { const from = document.getElementById('expenseFromDate')?.value || ''; const to = document.getElementById('expenseToDate')?.value || ''; let filtered = expenses; if (from) filtered = filtered.filter(e => e.date >= from); if (to) filtered = filtered.filter(e => e.date <= to); const html = `<table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount (₹)</th><th>Description</th></tr></thead><tbody>${filtered.map(e => { const v = vehicles.find(vv=>vv.id===e.vehicleId); return `<tr><td>${e.date}</td><td>${v?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td><td>${e.description || '-'}</td></tr>`; }).join('')}</tbody></table>`; document.getElementById('expenseReportTable').innerHTML = html; };
+    window.filterMaintenanceReport = () => { const html = `<table><thead><tr><th>Vehicle</th><th>Status</th><th>Maintenance History</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td><span class="status-badge ${v.status==='Active'?'status-active':'status-maintenance'}">${v.status}</span></td><td>${v.maintenanceRemark || 'None'}</td></tr>`).join('')}</tbody></table>`; document.getElementById('maintenanceReportTable').innerHTML = html; };
+    window.exportAssignmentPDF = () => { const el = document.getElementById('assignmentReportTable'); if (el) html2pdf().from(el).set({ margin: 0.5, filename: `Assignment_Report.pdf` }).save(); };
+    window.exportAssignmentExcel = () => { const wsData = assignments.map(a => ({ Date: a.date, Driver: drivers.find(d=>d.id===a.driverId)?.name, Vehicle: vehicles.find(v=>v.id===a.vehicleId)?.reg, Remarks: a.remarks })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Assignments"); XLSX.writeFile(wb, `Assignment_Report.xlsx`); };
+    window.exportFuelPDF = () => { const el = document.getElementById('fuelReportTable'); if (el) html2pdf().from(el).set({ margin: 0.5, filename: `Fuel_Report.pdf` }).save(); };
+    window.exportFuelExcel = () => { const wsData = fuelRecords.map(f => ({ Date: f.date, Vehicle: vehicles.find(v=>v.id===f.vehicleId)?.reg, Liters: f.liters, Cost: f.cost })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Fuel"); XLSX.writeFile(wb, `Fuel_Report.xlsx`); };
+    window.exportExpensePDF = () => { const el = document.getElementById('expenseReportTable'); if (el) html2pdf().from(el).set({ margin: 0.5, filename: `Expense_Report.pdf` }).save(); };
+    window.exportExpenseExcel = () => { const wsData = expenses.map(e => ({ Date: e.date, Vehicle: vehicles.find(v=>v.id===e.vehicleId)?.reg, Type: e.type, Amount: e.amount, Description: e.description })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Expenses"); XLSX.writeFile(wb, `Expense_Report.xlsx`); };
+    window.exportMaintenancePDF = () => { const el = document.getElementById('maintenanceReportTable'); if (el) html2pdf().from(el).set({ margin: 0.5, filename: `Maintenance_Report.pdf` }).save(); };
+    window.exportMaintenanceExcel = () => { const wsData = vehicles.map(v => ({ Vehicle: v.reg, Status: v.status, Maintenance_History: v.maintenanceRemark || 'None' })); const ws = XLSX.utils.json_to_sheet(wsData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Maintenance"); XLSX.writeFile(wb, `Maintenance_Report.xlsx`); };
+    window.switchReportTab = (tab) => { document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active')); document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('active')); document.getElementById(`${tab}ReportPanel`).classList.add('active'); event.target.classList.add('active'); };
+
+    async function handleLogin(email, password) { try { const userCred = await signInWithEmailAndPassword(auth, email, password); const user = userCred.user; if (email === 'harishspeedel@gmail.com') { currentUser = user; userRole = 'admin'; userData = { displayName: 'Harish Admin' }; } else { const q = query(collection(db, 'supervisors'), where('email', '==', email)); const snapshot = await getDocs(q); if (!snapshot.empty) { currentUser = user; userRole = 'supervisor'; userData = snapshot.docs[0].data(); } else { await signOut(auth); return false; } } saveUserSession(currentUser, userRole, userData); document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appContainer').style.display = 'flex'; document.getElementById('currentUserName').innerText = userData?.displayName || email.split('@')[0]; loadFromLocalStorage(); logActivity("Login", `User logged in`); return true; } catch(e) { return false; } }
+    function handleLogout() { logActivity("Logout", "User logged out"); signOut(auth); currentUser = null; userRole = null; saveUserSession(null, null, null); document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appContainer').style.display = 'none'; }
+    function saveUserSession(user, role, data) { if (user) localStorage.setItem('speedel_session', JSON.stringify({ uid: user.uid, email: user.email, role: role, userData: data })); else localStorage.removeItem('speedel_session'); }
+    async function setupFirstAdmin() { try { await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055'); console.log("Admin created"); } catch(e) {} }
+
     function initApp() {
-        const savedTheme = localStorage.getItem('theme'); if(savedTheme === 'dark') document.body.classList.add('dark');
-        const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management System</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
-        const appHtml = `<div id="appContainer" style="display:none"><button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button><div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div><div class="sidebar" id="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
+        const savedTheme = localStorage.getItem('theme'); if (savedTheme === 'dark') document.body.classList.add('dark');
+        const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Complete Fleet Management</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
+        const appHtml = `<div id="appContainer" style="display:none"><button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button><div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div><div class="sidebar" id="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="fuelPage" class="page"><div id="fuelContent"></div></div><div id="expensesPage" class="page"><div id="expensesContent"></div></div><div id="insurancePage" class="page"><div id="insuranceContent"></div></div><div id="documentsPage" class="page"><div id="documentsContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="activityPage" class="page"><div id="activityContent"></div></div><div id="backupPage" class="page"><div id="backupContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
-        document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if(await handleLogin(email, pwd)) { showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
+        document.getElementById('loginBtn').onclick = async () => { const email = document.getElementById('loginEmail').value; const pwd = document.getElementById('loginPassword').value; if (await handleLogin(email, pwd)) { showPage('dashboardPage'); } else document.getElementById('loginError').innerText = 'Invalid credentials'; };
         window.toggleSidebar = toggleSidebar; window.closeSidebar = closeSidebar; showPage('dashboardPage'); setTimeout(setupFirstAdmin, 2000);
-        onAuthStateChanged(auth, async (user) => { if (user && !currentUser) { const email = user.email;
-            if(email === 'harishspeedel@gmail.com') { currentUser = user; userRole = 'admin'; userData = { displayName: 'Harish Admin' }; }
-            else { const q = query(collection(db, 'supervisors'), where('email', '==', email)); const snapshot = await getDocs(q); if(!snapshot.empty) { currentUser = user; userRole = 'supervisor'; userData = snapshot.docs[0].data(); } }
-            if(currentUser) { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appContainer').style.display = 'flex'; document.getElementById('currentUserName').innerText = userData?.displayName || email?.split('@')[0]; await loadFirestoreData(); showPage('dashboardPage'); saveUserSession(currentUser, userRole, userData); } } });
+        onAuthStateChanged(auth, async (user) => { if (user && !currentUser) { const email = user.email; if (email === 'harishspeedel@gmail.com') { currentUser = user; userRole = 'admin'; userData = { displayName: 'Harish Admin' }; } else { const q = query(collection(db, 'supervisors'), where('email', '==', email)); const snapshot = await getDocs(q); if (!snapshot.empty) { currentUser = user; userRole = 'supervisor'; userData = snapshot.docs[0].data(); } } if (currentUser) { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appContainer').style.display = 'flex'; document.getElementById('currentUserName').innerText = userData?.displayName || email?.split('@')[0]; loadFromLocalStorage(); showPage('dashboardPage'); } } });
     }
     initApp();
 </script>
