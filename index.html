@@ -141,6 +141,9 @@
         .firebase-status { position: fixed; top: 10px; right: 10px; background: var(--success); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; z-index: 1001; }
         .role-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: var(--primary); color: white; }
         .hidden { display: none !important; }
+        .password-requirements { font-size: 0.8rem; color: var(--gray); margin-top: 5px; }
+        .password-requirements .valid { color: var(--success); }
+        .password-requirements .invalid { color: var(--danger); }
     </style>
 </head>
 <body>
@@ -377,7 +380,7 @@
         `;
     }
 
-    // Simplified render functions for other pages (keeping core functionality)
+    // Simplified render functions for other pages
     function renderVehiclesPage() {
         const container = document.getElementById('vehiclesContent');
         if (!container || (!hasPermission('vehicles') && !canEdit())) return;
@@ -394,7 +397,6 @@
         `;
     }
 
-    // Other render functions (similar pattern - kept in code but shortened for readability)
     function renderDriversPage() {
         const container = document.getElementById('driversContent');
         if (!container || (!hasPermission('drivers') && !canEdit())) return;
@@ -411,7 +413,6 @@
         `;
     }
 
-    // Quick render for other pages (kept functional)
     function renderAssignmentsPage() {
         const container = document.getElementById('assignmentsContent');
         if (!container || (!hasPermission('assignments') && !canEdit())) return;
@@ -549,12 +550,13 @@
         if (!container || !canEdit()) return;
         container.innerHTML = `
             <div class="card"><div class="card-title">👥 Create Supervisor</div><div class="form-vertical">
-                <div class="form-group"><label>Email</label><input type="email" id="supEmail"></div>
-                <div class="form-group"><label>Name</label><input type="text" id="supName"></div>
+                <div class="form-group"><label>Email *</label><input type="email" id="supEmail" placeholder="supervisor@example.com"></div>
+                <div class="form-group"><label>Name *</label><input type="text" id="supName" placeholder="Full name"></div>
                 <div class="form-group"><label>Contract</label><select id="supContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Permissions</label><select id="supPermissions" multiple style="height:100px">${Object.entries(MODULES).map(([key, val]) => `<option value="${key}">${val.label}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Password</label><div class="password-field"><input type="password" id="supPassword"><button onclick="generateRandomPassword()">Generate</button></div></div>
-                <div class="form-actions"><button onclick="createSupervisor()">Create</button></div>
+                <div class="form-group"><label>Password *</label><div class="password-field"><input type="password" id="supPassword" placeholder="Min 6 characters"><button onclick="generateRandomPassword()">Generate</button></div>
+                <div class="password-requirements"><span id="pwdCheck">Password must be at least 6 characters</span></div></div>
+                <div class="form-actions"><button onclick="createSupervisor()">Create Supervisor</button></div>
             </div></div>
             <div class="card"><div class="card-title">📋 Supervisors</div><div class="table-container"><table><thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>${supervisors.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td>${(s.permissions || []).map(p => MODULES[p]?.label || p).join(', ') || 'None'}</td><td class="action-icons"><i class="fas fa-key" onclick="resetSupervisorPassword('${s.email}')" title="Reset Password"></i><i class="fas fa-trash-alt" onclick="deleteSupervisor('${s.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
         `;
@@ -843,35 +845,108 @@
         renderAllPages(); 
     };
 
+    // ============================================================
+    //  FIXED: SUPERVISOR CREATION WITH PROPER AUTH
+    // ============================================================
     window.createSupervisor = async () => {
-        const email = document.getElementById('supEmail')?.value;
-        const name = document.getElementById('supName')?.value;
+        const email = document.getElementById('supEmail')?.value.trim();
+        const name = document.getElementById('supName')?.value.trim();
         const password = document.getElementById('supPassword')?.value;
         const perms = Array.from(document.getElementById('supPermissions')?.selectedOptions || []).map(o => o.value);
-        if (!email || !name || !password) return notify("Fill all fields");
+        
+        if (!email || !name || !password) {
+            notify("⚠️ Please fill all required fields (Email, Name, Password)");
+            return;
+        }
+        
+        if (password.length < 6) {
+            notify("⚠️ Password must be at least 6 characters long");
+            return;
+        }
+        
+        // Validate email format
+        if (!email.includes('@') || !email.includes('.')) {
+            notify("⚠️ Please enter a valid email address");
+            return;
+        }
+        
         try {
+            // Step 1: Create user in Firebase Authentication
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
-            const data = { email, name, contractId: document.getElementById('supContractId')?.value, permissions: perms, uid: userCred.user.uid };
+            const uid = userCred.user.uid;
+            
+            // Step 2: Save supervisor data to Firestore
+            const data = { 
+                email: email, 
+                name: name, 
+                contractId: document.getElementById('supContractId')?.value, 
+                permissions: perms, 
+                uid: uid,
+                createdAt: new Date().toISOString()
+            };
+            
             const id = await saveToFirestore('supervisors', data);
-            if (id) { supervisors.push({ id, ...data }); renderAllPages(); notify(`Supervisor ${name} created`); }
-        } catch(e) { notify(e.message); }
+            
+            if (id) {
+                supervisors.push({ id, ...data });
+                renderAllPages();
+                notify(`✅ Supervisor "${name}" created successfully!\nEmail: ${email}\nPassword: ${password}`);
+                
+                // Clear form
+                document.getElementById('supEmail').value = '';
+                document.getElementById('supName').value = '';
+                document.getElementById('supPassword').value = '';
+                
+                // Log audit
+                auditLogs.push({
+                    user: currentUser?.email || 'Admin',
+                    timestamp: new Date().toISOString(),
+                    module: 'Supervisors',
+                    action: `Created supervisor: ${name} (${email})`
+                });
+            }
+        } catch(error) {
+            console.error("Supervisor creation error:", error);
+            
+            // Provide user-friendly error messages
+            let errorMsg = "Failed to create supervisor: ";
+            if (error.code === 'auth/email-already-in-use') {
+                errorMsg = "❌ This email is already registered. Please use a different email.";
+            } else if (error.code === 'auth/invalid-email') {
+                errorMsg = "❌ Invalid email format. Please check the email address.";
+            } else if (error.code === 'auth/weak-password') {
+                errorMsg = "❌ Password is too weak. Please use at least 6 characters.";
+            } else {
+                errorMsg += error.message;
+            }
+            notify(errorMsg);
+        }
     };
 
     window.deleteSupervisor = async (id) => { 
         await deleteFromFirestore('supervisors', id); 
         supervisors = supervisors.filter(s => s.id !== id); 
         renderAllPages(); 
+        notify("Supervisor deleted");
     };
 
     window.generateRandomPassword = () => { 
-        const pass = Math.random().toString(36).slice(-8) + "A1!"; 
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let pass = '';
+        for (let i = 0; i < 10; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
         document.getElementById('supPassword').value = pass; 
-        notify("Password generated"); 
+        notify("✅ Strong password generated!"); 
     };
 
     window.resetSupervisorPassword = async (email) => { 
-        try { await sendPasswordResetEmail(auth, email); notify(`Reset email sent to ${email}`); } 
-        catch(e) { notify(e.message); } 
+        try { 
+            await sendPasswordResetEmail(auth, email); 
+            notify(`✅ Password reset email sent to ${email}`); 
+        } catch(e) { 
+            notify("❌ Error: " + e.message); 
+        } 
     };
 
     // ============================================================
@@ -936,6 +1011,21 @@
         alert(`📄 Salary Slip\nDriver: ${d?.name}\nMonth: ${p.month}\nBasic: ₹${p.basic}\nIncentives: ₹${p.incentive}\nDeductions: ₹${p.deduction}\nNet Salary: ₹${net}`); 
     };
 
+    // Password validation on input
+    document.addEventListener('input', function(e) {
+        if (e.target.id === 'supPassword') {
+            const pwd = e.target.value;
+            const checkEl = document.getElementById('pwdCheck');
+            if (pwd.length >= 6) {
+                checkEl.innerHTML = '✅ Password is strong enough';
+                checkEl.style.color = 'var(--success)';
+            } else {
+                checkEl.innerHTML = '⚠️ Password must be at least 6 characters';
+                checkEl.style.color = 'var(--danger)';
+            }
+        }
+    });
+
     // ============================================================
     //  AUTH
     // ============================================================
@@ -949,6 +1039,7 @@
                 userData = { name: 'Super Admin', permissions: userPermissions };
                 await loadAllData();
             } else {
+                // Check if user exists in supervisors collection
                 const sup = supervisors.find(s => s.email === email);
                 if (sup) {
                     currentUser = userCred.user; 
@@ -966,6 +1057,7 @@
             document.getElementById('currentUserName').innerText = userData?.name || email.split('@')[0];
             return true;
         } catch(e) { 
+            console.error("Login error:", e);
             return false; 
         }
     }
@@ -982,6 +1074,7 @@
     async function setupFirstAdmin() { 
         try { 
             await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055'); 
+            console.log("Admin account ready");
         } catch(e) {} 
     }
 
@@ -1001,7 +1094,7 @@
             if (await handleLogin(email, pwd)) {
                 showPage('dashboardPage');
             } else {
-                document.getElementById('loginError').innerText = 'Invalid credentials';
+                document.getElementById('loginError').innerText = '❌ Invalid credentials. Please check your email and password.';
             }
         };
         
