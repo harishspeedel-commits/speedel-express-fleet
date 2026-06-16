@@ -61,6 +61,7 @@
             --dark: #2c3e50; --light: #fff5eb; --gray: #7f8c8d;
             --success: #27ae60; --danger: #e74c3c; --warning: #f1c40f;
             --white: #ffffff; --shadow: 0 2px 10px rgba(0,0,0,0.08);
+            --info: #3498db;
         }
         body.dark { --light: #1a1a2e; --white: #16213e; --dark: #e2e2e2; --gray: #a0a0a0; }
         body { background: var(--light); transition: all 0.3s ease; }
@@ -74,9 +75,9 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 70px 15px 30px 15px; }
             .grid-3 { grid-template-columns: 1fr !important; }
+            .filter-row { flex-direction: column; }
             .report-tabs { flex-direction: column; }
             .report-tab-btn { width: 100%; text-align: center; }
-            .filter-row { flex-direction: column; }
         }
         
         .sidebar-header { padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
@@ -136,17 +137,18 @@
         .report-tab-btn.active { color: var(--primary); background: rgba(230,126,34,0.1); }
         .report-panel { display: none; }
         .report-panel.active { display: block; }
-        .password-field { display: flex; gap: 10px; align-items: center; }
-        .password-field input { flex: 1; }
-        .firebase-status { position: fixed; top: 10px; right: 10px; background: var(--success); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; z-index: 1001; }
-        .role-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: var(--primary); color: white; }
         .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px; }
         .filter-row .form-group { margin-bottom: 0; flex: 1; min-width: 120px; }
         .filter-row button { height: 42px; padding: 0 20px; }
         .report-summary { background: var(--light); padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; gap: 20px; flex-wrap: wrap; }
         .report-summary-item { font-weight: 600; }
         .report-summary-item span { color: var(--primary); }
-        .password-requirements { font-size: 0.8rem; color: var(--gray); margin-top: 5px; }
+        .password-field { display: flex; gap: 10px; align-items: center; }
+        .password-field input { flex: 1; }
+        .firebase-status { position: fixed; top: 10px; right: 10px; background: var(--success); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; z-index: 1001; }
+        .role-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: var(--primary); color: white; }
+        .incentive-box { background: var(--success); color: white; padding: 5px 10px; border-radius: 5px; font-weight: 700; }
+        .sunday-badge { background: var(--danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; }
     </style>
 </head>
 <body>
@@ -176,6 +178,13 @@
     let auditLogs = [];
     let companyLogo = localStorage.getItem('companyLogo') || '';
     let isDataLoaded = false;
+
+    // Incentive configuration
+    const INCENTIVE_CONFIG = {
+        baseTrips: 6,           // 6 trips = no incentive
+        bonusPerTrip: 500,      // ₹500 per extra trip
+        sundayExtraSalary: true // Sunday = 1 day extra salary
+    };
 
     const MODULES = {
         dashboard: { label: 'Dashboard', icon: 'fa-tachometer-alt' },
@@ -224,6 +233,128 @@
 
     function canEdit() { 
         return userRole === 'superadmin' || userRole === 'admin'; 
+    }
+
+    // ============================================================
+    //  INCENTIVE CALCULATION ENGINE
+    // ============================================================
+    function calculateDriverIncentives(driverId, month, year) {
+        // Get all trips for this driver in the given month
+        const driverTrips = assignments.filter(a => {
+            if (a.driverId !== driverId) return false;
+            if (!a.date) return false;
+            const d = new Date(a.date);
+            return d.getMonth() === month && d.getFullYear() === year && a.status === 'Closed';
+        });
+
+        // Group trips by week (Monday to Sunday)
+        const weeks = {};
+        driverTrips.forEach(trip => {
+            const date = new Date(trip.date);
+            const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ...
+            // Get Monday of the week
+            const monday = new Date(date);
+            monday.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const weekKey = monday.toISOString().split('T')[0];
+            if (!weeks[weekKey]) {
+                weeks[weekKey] = { trips: [], sundayTrips: [] };
+            }
+            if (dayOfWeek === 0) {
+                weeks[weekKey].sundayTrips.push(trip);
+            } else {
+                weeks[weekKey].trips.push(trip);
+            }
+        });
+
+        // Calculate incentives per week
+        let totalIncentive = 0;
+        let sundayCount = 0;
+        let weeklyBreakdown = [];
+
+        Object.keys(weeks).forEach(weekKey => {
+            const week = weeks[weekKey];
+            const totalTrips = week.trips.length + week.sundayTrips.length;
+            const sundayTrips = week.sundayTrips.length;
+            
+            // Monday to Saturday trips (excluding Sunday)
+            const monToSatTrips = week.trips.length;
+            
+            // Incentive: Beyond 6 trips, ₹500 per extra trip (Monday to Saturday only)
+            let weekIncentive = 0;
+            if (monToSatTrips > INCENTIVE_CONFIG.baseTrips) {
+                const extraTrips = monToSatTrips - INCENTIVE_CONFIG.baseTrips;
+                weekIncentive = extraTrips * INCENTIVE_CONFIG.bonusPerTrip;
+            }
+            
+            // Sunday: 1 day extra salary (handled separately in payroll)
+            if (sundayTrips > 0) {
+                sundayCount += sundayTrips;
+            }
+
+            totalIncentive += weekIncentive;
+            weeklyBreakdown.push({
+                week: weekKey,
+                monToSatTrips: monToSatTrips,
+                sundayTrips: sundayTrips,
+                incentive: weekIncentive
+            });
+        });
+
+        return {
+            totalIncentive: totalIncentive,
+            sundayCount: sundayCount,
+            weeklyBreakdown: weeklyBreakdown,
+            totalTrips: driverTrips.length
+        };
+    }
+
+    function getDaysInMonth(month, year) {
+        return new Date(year, month + 1, 0).getDate();
+    }
+
+    function calculateSalary(driverId, month, year, basicSalary) {
+        const daysInMonth = getDaysInMonth(month, year);
+        const perDaySalary = basicSalary / daysInMonth;
+        
+        // Get attendance for this driver
+        const driverAttendance = attendance.filter(a => {
+            if (a.driverId !== driverId) return false;
+            if (!a.date) return false;
+            const d = new Date(a.date);
+            return d.getMonth() === month && d.getFullYear() === year;
+        });
+
+        const presentDays = driverAttendance.filter(a => a.status === 'Present').length;
+        const absentDays = driverAttendance.filter(a => a.status === 'Absent').length;
+        const leaveDays = driverAttendance.filter(a => a.status === 'Leave').length;
+        
+        // Calculate incentives
+        const incentiveData = calculateDriverIncentives(driverId, month, year);
+        const tripIncentive = incentiveData.totalIncentive;
+        const sundayCount = incentiveData.sundayCount;
+        
+        // Sunday extra pay: 1 day salary per Sunday worked
+        const sundayExtra = sundayCount * perDaySalary;
+        
+        // Basic salary for present days
+        const salaryForPresent = presentDays * perDaySalary;
+        
+        // Total earnings
+        const totalEarnings = salaryForPresent + tripIncentive + sundayExtra;
+        
+        return {
+            basicSalary: basicSalary,
+            perDaySalary: perDaySalary,
+            presentDays: presentDays,
+            absentDays: absentDays,
+            leaveDays: leaveDays,
+            tripIncentive: tripIncentive,
+            sundayCount: sundayCount,
+            sundayExtra: sundayExtra,
+            totalEarnings: totalEarnings,
+            daysInMonth: daysInMonth,
+            incentiveBreakdown: incentiveData.weeklyBreakdown
+        };
     }
 
     // ============================================================
@@ -363,7 +494,7 @@
     }
 
     // ============================================================
-    //  RENDER FUNCTIONS (Simplified)
+    //  RENDER FUNCTIONS
     // ============================================================
     function renderDashboardPage() {
         const container = document.getElementById('dashboardContent');
@@ -378,7 +509,7 @@
                 <div class="card"><h3>Trips Today</h3><p style="font-size:2rem">${assignments.filter(a=>a.date===new Date().toISOString().split('T')[0]).length}</p></div>
                 <div class="card"><h3>Fuel Cost</h3><p style="font-size:2rem">₹${totalFuel.toLocaleString()}</p></div>
                 <div class="card"><h3>Expenses</h3><p style="font-size:2rem">₹${totalExp.toLocaleString()}</p></div>
-                <div class="card"><h3>Maintenance</h3><p style="font-size:2rem">${maintenance.filter(m=>m.status!=='Completed').length} Pending</p></div>
+                <div class="card"><h3>Incentives This Month</h3><p style="font-size:2rem">₹${incentives.reduce((s,i)=>s+(i.amount||0),0).toLocaleString()}</p></div>
             </div>
         `;
     }
@@ -407,11 +538,12 @@
             <div class="card"><div class="card-title">👤 Add Driver</div><div class="form-vertical">
                 <div class="form-group"><label>Driver Name</label><input type="text" id="newDriverName" placeholder="Full name"></div>
                 <div class="form-group"><label>License Number</label><input type="text" id="newDriverLicense" placeholder="License No"></div>
+                <div class="form-group"><label>Basic Salary (Monthly)</label><input type="number" id="newDriverSalary" placeholder="e.g., 15000" value="15000"></div>
                 <div class="form-group"><label>Assigned Contract</label><select id="newDriverContract">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Status</label><select id="newDriverStatus"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="On Leave">On Leave</option></select></div>
                 <div class="form-actions"><button onclick="addDriver()">Add Driver</button></div>
             </div></div>
-            <div class="card"><div class="card-title">📋 All Drivers</div><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div></div>
+            <div class="card"><div class="card-title">📋 All Drivers</div><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Basic Salary</th><th>Status</th>${canEditFlag ? '<th>Actions</th>' : ''}</tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td>₹${d.basicSalary || 15000}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td>${canEditFlag ? `<td class="action-icons"><i class="fas fa-edit" onclick="editDriver('${d.id}')"></i><i class="fas fa-trash-alt" onclick="deleteDriver('${d.id}')"></i></td>` : ''}</tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
@@ -425,12 +557,229 @@
                 <div class="form-group"><label>Vehicle</label><select id="assignVehicleId">${vehicles.filter(v=>v.status==='Active').map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Contract</label><select id="assignContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Date</label><input type="date" id="assignDate" value="${today}"></div>
+                <div class="form-group"><label>Start Location</label><input type="text" id="assignStartLoc" placeholder="From"></div>
+                <div class="form-group"><label>End Location</label><input type="text" id="assignEndLoc" placeholder="To"></div>
                 <div class="form-actions"><button onclick="createAssignment()">Create Trip</button></div>
             </div></div>
-            <div class="card"><div class="card-title">📋 Trips</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Status</th><th>Actions</th></tr></thead><tbody>${assignments.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); return `<tr><td>${a.date}</td><td>${d?.name || '?'}</td><td>${v?.reg || '?'}</td><td>${c?.name || '?'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td><td class="action-icons"><i class="fas fa-check" onclick="closeTrip('${a.id}')" title="Close Trip"></i><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>
+            <div class="card"><div class="card-title">📋 Trips</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Route</th><th>Status</th><th>Actions</th></tr></thead><tbody>${assignments.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); const isSunday = a.date ? new Date(a.date).getDay() === 0 : false; return `<tr><td>${a.date} ${isSunday ? '<span class="sunday-badge">Sun</span>' : ''}</td><td>${d?.name || '?'}</td><td>${v?.reg || '?'}</td><td>${c?.name || '?'}</td><td>${a.startLoc || '-'} → ${a.endLoc || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td><td class="action-icons"><i class="fas fa-check" onclick="closeTrip('${a.id}')" title="Close Trip"></i><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>
         `;
     }
 
+    // ============================================================
+    //  PAYROLL & INCENTIVES PAGE - ENHANCED WITH CALCULATIONS
+    // ============================================================
+    function renderPayrollPage() {
+        const container = document.getElementById('payrollContent');
+        if (!container || (!hasPermission('payroll') && !canEdit())) return;
+        
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+        
+        container.innerHTML = `
+            <div class="card"><div class="card-title">💰 Generate Payroll with Incentives</div><div class="form-vertical">
+                <div class="form-group"><label>Driver</label><select id="payrollDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name} (₹${d.basicSalary || 15000}/mo)</option>`).join('')}</select></div>
+                <div class="form-group"><label>Month</label><input type="month" id="payrollMonth" value="${monthStr}"></div>
+                <div class="form-group"><label style="color:var(--info)"><i class="fas fa-info-circle"></i> Incentive Rules:</label>
+                    <div style="font-size:0.85rem;padding:10px;background:var(--light);border-radius:8px;">
+                        <p>📌 Monday-Saturday: First ${INCENTIVE_CONFIG.baseTrips} trips = ₹0 incentive</p>
+                        <p>💰 Beyond ${INCENTIVE_CONFIG.baseTrips} trips: ₹${INCENTIVE_CONFIG.bonusPerTrip} per extra trip</p>
+                        <p>📅 Sunday: 1 day extra salary per Sunday worked</p>
+                        <p>📆 Salary calculated based on actual days in month (${getDaysInMonth(currentMonth, currentYear)} days this month)</p>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button onclick="calculateAndGeneratePayroll()"><i class="fas fa-calculator"></i> Calculate & Generate</button>
+                    <button onclick="generatePayrollForAll()"><i class="fas fa-users"></i> Generate for All Drivers</button>
+                </div>
+            </div></div>
+            <div class="card"><div class="card-title">📋 Payroll Records</div>
+                <div class="filter-row">
+                    <div class="form-group"><label>Month</label><input type="month" id="payrollFilterMonth" value="${monthStr}" onchange="loadPayrollRecords()"></div>
+                    <button onclick="loadPayrollRecords()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportPayrollReport()"><i class="fas fa-file-excel"></i> Export Excel</button>
+                </div>
+                <div id="payrollRecordsTable"></div>
+            </div>
+        `;
+        loadPayrollRecords();
+    }
+
+    function loadPayrollRecords() {
+        const month = document.getElementById('payrollFilterMonth')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        
+        const table = document.getElementById('payrollRecordsTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} payroll records</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Driver</th><th>Month</th><th>Basic Salary</th><th>Present Days</th><th>Trip Incentive</th><th>Sunday Extra</th><th>Total Earnings</th><th>Actions</th></tr></thead>
+                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basicSalary || 0}</td><td>${p.presentDays || 0}/${p.daysInMonth || 30}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>₹${p.sundayExtra || 0}</td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td><td class="action-icons"><i class="fas fa-print" onclick="printSalarySlip('${p.id}')"></i><i class="fas fa-trash-alt" onclick="deletePayroll('${p.id}')"></i></td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+    }
+
+    // ============================================================
+    //  PAYROLL CALCULATION ENGINE
+    // ============================================================
+    window.calculateAndGeneratePayroll = async () => {
+        const driverId = document.getElementById('payrollDriverId')?.value;
+        const monthStr = document.getElementById('payrollMonth')?.value;
+        if (!driverId || !monthStr) { notify("Select driver and month"); return; }
+        
+        const [year, month] = monthStr.split('-').map(Number);
+        const driver = drivers.find(d => d.id === driverId);
+        if (!driver) { notify("Driver not found"); return; }
+        
+        const basicSalary = driver.basicSalary || 15000;
+        const result = calculateSalary(driverId, month - 1, year, basicSalary);
+        
+        // Save payroll
+        const payrollData = {
+            driverId: driverId,
+            month: monthStr,
+            basicSalary: basicSalary,
+            daysInMonth: result.daysInMonth,
+            presentDays: result.presentDays,
+            absentDays: result.absentDays,
+            leaveDays: result.leaveDays,
+            tripIncentive: result.tripIncentive,
+            sundayCount: result.sundayCount,
+            sundayExtra: result.sundayExtra,
+            totalEarnings: result.totalEarnings,
+            incentiveBreakdown: JSON.stringify(result.incentiveBreakdown),
+            generatedAt: new Date().toISOString()
+        };
+        
+        // Check if payroll already exists for this driver/month
+        const existing = payroll.find(p => p.driverId === driverId && p.month === monthStr);
+        if (existing) {
+            if (!confirm("Payroll already exists for this driver/month. Override?")) return;
+            payrollData.id = existing.id;
+        }
+        
+        const id = await saveToFirestore('payroll', payrollData);
+        if (id) {
+            if (!existing) payroll.push({ id, ...payrollData });
+            else {
+                const idx = payroll.findIndex(p => p.id === id);
+                if (idx >= 0) payroll[idx] = { id, ...payrollData };
+            }
+            renderAllPages();
+            notify(`✅ Payroll generated for ${driver.name}! Total: ₹${result.totalEarnings.toFixed(2)}`);
+            loadPayrollRecords();
+        }
+    };
+
+    window.generatePayrollForAll = async () => {
+        const monthStr = document.getElementById('payrollMonth')?.value;
+        if (!monthStr) { notify("Select month first"); return; }
+        
+        const [year, month] = monthStr.split('-').map(Number);
+        let count = 0;
+        
+        for (const driver of drivers) {
+            if (driver.status !== 'Active') continue;
+            const basicSalary = driver.basicSalary || 15000;
+            const result = calculateSalary(driver.id, month - 1, year, basicSalary);
+            
+            const payrollData = {
+                driverId: driver.id,
+                month: monthStr,
+                basicSalary: basicSalary,
+                daysInMonth: result.daysInMonth,
+                presentDays: result.presentDays,
+                absentDays: result.absentDays,
+                leaveDays: result.leaveDays,
+                tripIncentive: result.tripIncentive,
+                sundayCount: result.sundayCount,
+                sundayExtra: result.sundayExtra,
+                totalEarnings: result.totalEarnings,
+                incentiveBreakdown: JSON.stringify(result.incentiveBreakdown),
+                generatedAt: new Date().toISOString()
+            };
+            
+            const existing = payroll.find(p => p.driverId === driver.id && p.month === monthStr);
+            if (existing) payrollData.id = existing.id;
+            
+            const id = await saveToFirestore('payroll', payrollData);
+            if (id) {
+                if (!existing) payroll.push({ id, ...payrollData });
+                else {
+                    const idx = payroll.findIndex(p => p.id === id);
+                    if (idx >= 0) payroll[idx] = { id, ...payrollData };
+                }
+                count++;
+            }
+        }
+        
+        renderAllPages();
+        loadPayrollRecords();
+        notify(`✅ Generated payroll for ${count} drivers for ${monthStr}`);
+    };
+
+    // ============================================================
+    //  INCENTIVES PAGE
+    // ============================================================
+    function renderIncentivesPage() {
+        const container = document.getElementById('incentivesContent');
+        if (!container || (!hasPermission('incentives') && !canEdit())) return;
+        
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        container.innerHTML = `
+            <div class="card"><div class="card-title">⭐ Driver Incentive Report</div>
+                <div class="filter-row">
+                    <div class="form-group"><label>Driver</label><select id="incentiveDriverId">${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Month</label><input type="month" id="incentiveMonth" value="${currentYear}-${String(currentMonth + 1).padStart(2, '0')}"></div>
+                    <button onclick="calculateIncentiveReport()"><i class="fas fa-calculator"></i> Calculate</button>
+                </div>
+                <div id="incentiveReportResult"></div>
+            </div>
+        `;
+    }
+
+    window.calculateIncentiveReport = () => {
+        const driverId = document.getElementById('incentiveDriverId')?.value;
+        const monthStr = document.getElementById('incentiveMonth')?.value;
+        if (!driverId || !monthStr) { notify("Select driver and month"); return; }
+        
+        const [year, month] = monthStr.split('-').map(Number);
+        const driver = drivers.find(d => d.id === driverId);
+        if (!driver) { notify("Driver not found"); return; }
+        
+        const result = calculateSalary(driverId, month - 1, year, driver.basicSalary || 15000);
+        
+        const container = document.getElementById('incentiveReportResult');
+        container.innerHTML = `
+            <div style="padding:20px;background:var(--light);border-radius:10px;margin-top:15px;">
+                <h3>📊 Incentive Report for ${driver.name}</h3>
+                <div class="report-summary">
+                    <div class="report-summary-item">Month: <span>${monthStr}</span></div>
+                    <div class="report-summary-item">Total Trips: <span>${result.tripIncentive > 0 ? result.totalTrips || 0 : 0}</span></div>
+                    <div class="report-summary-item">Trip Incentive: <span style="color:var(--success);font-size:1.2rem">₹${result.tripIncentive}</span></div>
+                    <div class="report-summary-item">Sunday Worked: <span>${result.sundayCount} days</span></div>
+                    <div class="report-summary-item">Sunday Extra: <span>₹${result.sundayExtra.toFixed(2)}</span></div>
+                    <div class="report-summary-item">Present Days: <span>${result.presentDays}/${result.daysInMonth}</span></div>
+                    <div class="report-summary-item">Total Earnings: <span style="color:var(--primary);font-size:1.3rem">₹${result.totalEarnings.toFixed(2)}</span></div>
+                </div>
+                <h4>Weekly Breakdown</h4>
+                <div class="table-container"><table>
+                    <thead><tr><th>Week Starting</th><th>Mon-Sat Trips</th><th>Sunday Trips</th><th>Incentive</th></tr></thead>
+                    <tbody>${result.incentiveBreakdown.map(w => `<tr><td>${w.week}</td><td>${w.monToSatTrips}</td><td>${w.sundayTrips}</td><td>₹${w.incentive}</td></tr>`).join('')}</tbody>
+                </table></div>
+            </div>
+        `;
+    };
+
+    // ============================================================
+    //  OTHER PAGES (Simplified)
+    // ============================================================
     function renderMaintenancePage() {
         const container = document.getElementById('maintenanceContent');
         if (!container || (!hasPermission('maintenance') && !canEdit())) return;
@@ -517,36 +866,6 @@
         `;
     }
 
-    function renderPayrollPage() {
-        const container = document.getElementById('payrollContent');
-        if (!container || (!hasPermission('payroll') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">💰 Generate Payroll</div><div class="form-vertical">
-                <div class="form-group"><label>Driver</label><select id="payrollDriverId">${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Month</label><input type="month" id="payrollMonth" value="${new Date().toISOString().slice(0,7)}"></div>
-                <div class="form-group"><label>Basic Salary</label><input type="number" id="payrollBasic" value="15000"></div>
-                <div class="form-group"><label>Incentives</label><input type="number" id="payrollIncentive" value="0"></div>
-                <div class="form-group"><label>Deductions</label><input type="number" id="payrollDeduction" value="0"></div>
-                <div class="form-actions"><button onclick="generatePayroll()">Generate</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📋 Payroll Records</div><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Incentives</th><th>Deductions</th><th>Net Salary</th><th>Actions</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basic}</td><td>₹${p.incentive}</td><td>₹${p.deduction}</td><td><strong>₹${(p.basic + p.incentive - p.deduction)}</strong></td><td class="action-icons"><i class="fas fa-print" onclick="printPayroll('${p.id}')"></i><i class="fas fa-trash-alt" onclick="deletePayroll('${p.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderIncentivesPage() {
-        const container = document.getElementById('incentivesContent');
-        if (!container || (!hasPermission('incentives') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">⭐ Add Incentive</div><div class="form-vertical">
-                <div class="form-group"><label>Driver</label><select id="incDriverId">${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Amount</label><input type="number" id="incAmount"></div>
-                <div class="form-group"><label>Reason</label><input type="text" id="incReason" placeholder="e.g., Perfect Attendance"></div>
-                <div class="form-actions"><button onclick="addIncentive()">Add Incentive</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">⭐ Incentive Records</div><div class="table-container"><table><thead><tr><th>Driver</th><th>Amount</th><th>Reason</th><th>Actions</th></tr></thead><tbody>${incentives.map(i => `<tr><td>${drivers.find(d=>d.id===i.driverId)?.name || '-'}</td><td>₹${i.amount}</td><td>${i.reason || '-'}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteIncentive('${i.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
     function renderSupervisorsPage() {
         const container = document.getElementById('supervisorsContent');
         if (!container || !canEdit()) return;
@@ -584,18 +903,14 @@
                 <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
                 <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
                 <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
-                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
-                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
-                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
                 <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
+                <button class="report-tab-btn" onclick="switchReportTab('incentives')">⭐ Incentives</button>
             </div>
-            <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div id="vehiclesReportTable"><div class="table-container"><table><thead><tr><th>Reg Number</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div id="vehiclesReportTable"><div class="table-container"><table><thead><tr><th>Reg</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
             <div id="driversReportPanel" class="report-panel"><div class="card"><div id="driversReportTable"><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th></tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="tripsReportPanel" class="report-panel"><div class="card"><div id="tripsReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="fuelReportPanel" class="report-panel"><div class="card"><div id="fuelReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="expensesReportPanel" class="report-panel"><div class="card"><div id="expensesReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="attendanceReportPanel" class="report-panel"><div class="card"><div id="attendanceReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="payrollReportPanel" class="report-panel"><div class="card"><div id="payrollReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Net Salary</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basic}</td><td><strong>₹${(p.basic + p.incentive - p.deduction)}</strong></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="tripsReportPanel" class="report-panel"><div class="card"><div id="tripsReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date} ${new Date(a.date).getDay() === 0 ? '🌞' : ''}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="payrollReportPanel" class="report-panel"><div class="card"><div id="payrollReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Incentive</th><th>Sunday Extra</th><th>Total</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basicSalary}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>₹${p.sundayExtra || 0}</td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="incentivesReportPanel" class="report-panel"><div class="card"><div id="incentivesReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Trips</th><th>Incentive</th><th>Sunday Days</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>${p.totalTrips || 0}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>${p.sundayCount || 0}</td></tr>`).join('')}</tbody></table></div></div></div></div>
         `;
     }
 
@@ -657,7 +972,13 @@
         if (!canEdit()) return;
         const name = document.getElementById('newDriverName')?.value;
         if (!name) return notify("Name required");
-        const data = { name, license: document.getElementById('newDriverLicense')?.value, contractId: document.getElementById('newDriverContract')?.value, status: document.getElementById('newDriverStatus')?.value };
+        const data = { 
+            name, 
+            license: document.getElementById('newDriverLicense')?.value, 
+            basicSalary: parseFloat(document.getElementById('newDriverSalary')?.value) || 15000,
+            contractId: document.getElementById('newDriverContract')?.value, 
+            status: document.getElementById('newDriverStatus')?.value 
+        };
         const id = await saveToFirestore('drivers', data);
         if (id) { drivers.push({ id, ...data }); renderAllPages(); notify("Driver added"); }
     };
@@ -681,6 +1002,8 @@
             driverId: document.getElementById('assignDriverId')?.value,
             vehicleId: document.getElementById('assignVehicleId')?.value,
             contractId: document.getElementById('assignContractId')?.value,
+            startLoc: document.getElementById('assignStartLoc')?.value,
+            endLoc: document.getElementById('assignEndLoc')?.value,
             status: 'Open'
         };
         const id = await saveToFirestore('assignments', data);
@@ -807,22 +1130,11 @@
         renderAllPages();
     };
 
-    window.generatePayroll = async () => {
-        const data = {
-            driverId: document.getElementById('payrollDriverId')?.value,
-            month: document.getElementById('payrollMonth')?.value,
-            basic: parseFloat(document.getElementById('payrollBasic')?.value) || 0,
-            incentive: parseFloat(document.getElementById('payrollIncentive')?.value) || 0,
-            deduction: parseFloat(document.getElementById('payrollDeduction')?.value) || 0
-        };
-        const id = await saveToFirestore('payroll', data);
-        if (id) { payroll.push({ id, ...data }); renderAllPages(); notify("Payroll generated"); }
-    };
-
     window.deletePayroll = async (id) => {
         await deleteFromFirestore('payroll', id);
         payroll = payroll.filter(p => p.id !== id);
         renderAllPages();
+        loadPayrollRecords();
     };
 
     window.addIncentive = async () => {
@@ -933,6 +1245,9 @@
     window.showPage = (pageId) => {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.getElementById(pageId)?.classList.add('active');
+        if (pageId === 'payrollPage') {
+            loadPayrollRecords();
+        }
     };
 
     window.toggleTheme = () => {
@@ -940,24 +1255,42 @@
         localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     };
 
-    window.printPayroll = (id) => {
+    window.printSalarySlip = (id) => {
         const p = payroll.find(p => p.id === id);
         if (!p) return;
         const d = drivers.find(d => d.id === p.driverId);
-        const net = p.basic + p.incentive - p.deduction;
-        alert(`📄 Salary Slip\nDriver: ${d?.name}\nMonth: ${p.month}\nBasic: ₹${p.basic}\nIncentives: ₹${p.incentive}\nDeductions: ₹${p.deduction}\nNet Salary: ₹${net}`);
+        const net = p.totalEarnings || (p.basicSalary + (p.tripIncentive || 0) + (p.sundayExtra || 0));
+        alert(`📄 Salary Slip\n━━━━━━━━━━━━━━━━━━━\nDriver: ${d?.name}\nMonth: ${p.month}\n━━━━━━━━━━━━━━━━━━━\nBasic Salary: ₹${p.basicSalary}\nPresent Days: ${p.presentDays || 0}/${p.daysInMonth || 30}\nTrip Incentive: ₹${p.tripIncentive || 0}\nSunday Extra: ₹${p.sundayExtra || 0}\n━━━━━━━━━━━━━━━━━━━\nTotal Earnings: ₹${net.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━`);
+    };
+
+    window.exportPayrollReport = () => {
+        const month = document.getElementById('payrollFilterMonth')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        const wsData = data.map(p => ({
+            Driver: drivers.find(d=>d.id===p.driverId)?.name || '-',
+            Month: p.month,
+            'Basic Salary': p.basicSalary,
+            'Present Days': p.presentDays || 0,
+            'Trip Incentive': p.tripIncentive || 0,
+            'Sunday Extra': p.sundayExtra || 0,
+            'Total Earnings': (p.totalEarnings || 0).toFixed(2)
+        }));
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Payroll");
+        XLSX.writeFile(wb, `Payroll_${month || 'All'}.xlsx`);
+        notify("✅ Payroll exported!");
     };
 
     // ============================================================
-    //  AUTH - FIXED: Proper supervisor login from any device
+    //  AUTH
     // ============================================================
     async function handleLogin(email, password) {
         try {
-            // Step 1: Authenticate with Firebase
             const userCred = await signInWithEmailAndPassword(auth, email, password);
             const user = userCred.user;
             
-            // Step 2: Check if it's the super admin
             if (email === 'harishspeedel@gmail.com') {
                 currentUser = user;
                 userRole = 'superadmin';
@@ -972,15 +1305,12 @@
                 return true;
             }
             
-            // Step 3: For other users, load supervisors data first
-            // This is the key fix - load supervisors before checking
             if (!isDataLoaded) {
                 const snap = await getDocs(collection(db, 'supervisors'));
                 supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 isDataLoaded = true;
             }
             
-            // Step 4: Find the supervisor in the loaded data
             const sup = supervisors.find(s => s.email === email);
             
             if (sup) {
@@ -988,10 +1318,7 @@
                 userRole = 'supervisor';
                 userPermissions = sup.permissions || [];
                 userData = sup;
-                
-                // Load all data for the supervisor
                 await loadAllData();
-                
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'flex';
                 document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
@@ -999,7 +1326,6 @@
                 notify(`✅ Welcome ${sup.name || 'Supervisor'}!`);
                 return true;
             } else {
-                // User exists in Auth but not in supervisors collection
                 await signOut(auth);
                 document.getElementById('loginError').innerText = '❌ Account not authorized. Please contact admin.';
                 return false;
@@ -1007,13 +1333,9 @@
         } catch(error) {
             console.error("Login error:", error);
             let msg = "Invalid credentials";
-            if (error.code === 'auth/user-not-found') {
-                msg = "❌ User not found. Please check your email.";
-            } else if (error.code === 'auth/wrong-password') {
-                msg = "❌ Incorrect password. Please try again.";
-            } else if (error.code === 'auth/too-many-requests') {
-                msg = "❌ Too many failed attempts. Please try again later.";
-            }
+            if (error.code === 'auth/user-not-found') msg = "❌ User not found";
+            else if (error.code === 'auth/wrong-password') msg = "❌ Incorrect password";
+            else if (error.code === 'auth/too-many-requests') msg = "❌ Too many attempts";
             document.getElementById('loginError').innerText = msg;
             return false;
         }
@@ -1027,16 +1349,14 @@
         isDataLoaded = false;
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('appContainer').style.display = 'none';
-        notify("👋 Logged out successfully");
+        notify("👋 Logged out");
     }
 
     async function setupFirstAdmin() {
         try {
             await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055');
             console.log("Admin account ready");
-        } catch(e) {
-            // Admin already exists or other error - ignore
-        }
+        } catch(e) {}
     }
 
     function initApp() {
@@ -1048,13 +1368,11 @@
                 <div class="login-card">
                     <h1>⚡ SPEEDEL EXPRESS</h1>
                     <p>Fleet Management - Enterprise Edition</p>
-                    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-                    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+                    <input type="email" id="loginEmail" placeholder="Email">
+                    <input type="password" id="loginPassword" placeholder="Password">
                     <div id="loginError" class="error-message"></div>
                     <button id="loginBtn">Login</button>
-                    <p style="margin-top:15px;font-size:0.7rem;color:var(--gray)">
-                        <i class="fas fa-cloud"></i> Access from anywhere
-                    </p>
+                    <p style="margin-top:15px;font-size:0.7rem;color:var(--gray)"><i class="fas fa-cloud"></i> Access from anywhere</p>
                 </div>
             </div>
         `;
@@ -1124,7 +1442,6 @@
                     document.getElementById('currentUserName').innerText = 'Super Admin';
                     showPage('dashboardPage');
                 } else {
-                    // Load supervisors and check
                     const snap = await getDocs(collection(db, 'supervisors'));
                     supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const sup = supervisors.find(s => s.email === email);
