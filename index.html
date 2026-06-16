@@ -50,7 +50,7 @@
         window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
         window.sendPasswordResetEmail = sendPasswordResetEmail;
 
-        console.log("🔥 Firebase Connected! Accessible from anywhere.");
+        console.log("🔥 Firebase Connected!");
         window.firebaseReady = true;
     </script>
     
@@ -73,9 +73,10 @@
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 70px 15px 30px 15px; }
-            .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+            .grid-3 { grid-template-columns: 1fr !important; }
             .report-tabs { flex-direction: column; }
             .report-tab-btn { width: 100%; text-align: center; }
+            .filter-row { flex-direction: column; }
         }
         
         .sidebar-header { padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
@@ -116,7 +117,6 @@
         .form-vertical { display: flex; flex-direction: column; }
         .form-actions { margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         
         .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--secondary)); padding: 20px; }
         .login-card { background: white; padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
@@ -136,7 +136,6 @@
         .report-tab-btn.active { color: var(--primary); background: rgba(230,126,34,0.1); }
         .report-panel { display: none; }
         .report-panel.active { display: block; }
-        .document-preview { max-width: 50px; max-height: 50px; cursor: pointer; border-radius: 8px; }
         .password-field { display: flex; gap: 10px; align-items: center; }
         .password-field input { flex: 1; }
         .firebase-status { position: fixed; top: 10px; right: 10px; background: var(--success); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; z-index: 1001; }
@@ -147,7 +146,7 @@
         .report-summary { background: var(--light); padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; gap: 20px; flex-wrap: wrap; }
         .report-summary-item { font-weight: 600; }
         .report-summary-item span { color: var(--primary); }
-        .table-count { font-size: 0.8rem; color: var(--gray); margin-bottom: 10px; }
+        .password-requirements { font-size: 0.8rem; color: var(--gray); margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -176,6 +175,7 @@
     let incentives = [];
     let auditLogs = [];
     let companyLogo = localStorage.getItem('companyLogo') || '';
+    let isDataLoaded = false;
 
     const MODULES = {
         dashboard: { label: 'Dashboard', icon: 'fa-tachometer-alt' },
@@ -285,6 +285,7 @@
             snap = await getDocs(collection(db, 'auditLogs'));
             auditLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             
+            isDataLoaded = true;
             renderAllPages();
             notify("✅ Data loaded from Firebase Cloud");
         } catch(e) { 
@@ -362,7 +363,7 @@
     }
 
     // ============================================================
-    //  RENDER PAGES (Simplified for space)
+    //  RENDER FUNCTIONS (Simplified)
     // ============================================================
     function renderDashboardPage() {
         const container = document.getElementById('dashboardContent');
@@ -379,661 +380,9 @@
                 <div class="card"><h3>Expenses</h3><p style="font-size:2rem">₹${totalExp.toLocaleString()}</p></div>
                 <div class="card"><h3>Maintenance</h3><p style="font-size:2rem">${maintenance.filter(m=>m.status!=='Completed').length} Pending</p></div>
             </div>
-            <div class="card"><div class="card-title">Contract Summary</div><div class="table-container"><table><thead><tr><th>Contract</th><th>Vehicles</th><th>Drivers</th><th>Trips</th><th>Expenses</th></tr></thead><tbody>${contracts.map(c => `<tr><td>${c.name}</td><td>${vehicles.filter(v=>v.contractId===c.id).length}</td><td>${drivers.filter(d=>d.contractId===c.id).length}</td><td>${assignments.filter(a=>a.contractId===c.id).length}</td><td>₹${expenses.filter(e=>e.contractId===c.id).reduce((s,e)=>s+e.amount,0)}</td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
-    // ============================================================
-    //  COMPLETE REPORTS MODULE - SHOWS ALL DATA
-    // ============================================================
-    function renderReportsPage() {
-        const container = document.getElementById('reportsContent');
-        if (!container || (!hasPermission('reports') && !canEdit())) return;
-        
-        container.innerHTML = `
-            <div class="page-header"><h1>📊 Complete Reports</h1><p>All data across all modules with filters and exports</p></div>
-            <div class="report-tabs">
-                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
-                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
-                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
-                <button class="report-tab-btn" onclick="switchReportTab('maintenance')">🔧 Maintenance</button>
-                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
-                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
-                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
-                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
-                <button class="report-tab-btn" onclick="switchReportTab('incentives')">⭐ Incentives</button>
-                <button class="report-tab-btn" onclick="switchReportTab('documents')">📁 Documents</button>
-                <button class="report-tab-btn" onclick="switchReportTab('supervisors')">👥 Supervisors</button>
-                <button class="report-tab-btn" onclick="switchReportTab('audit')">📜 Audit Logs</button>
-            </div>
-            <div id="vehiclesReportPanel" class="report-panel active">${getVehiclesReportHTML()}</div>
-            <div id="driversReportPanel" class="report-panel">${getDriversReportHTML()}</div>
-            <div id="tripsReportPanel" class="report-panel">${getTripsReportHTML()}</div>
-            <div id="maintenanceReportPanel" class="report-panel">${getMaintenanceReportHTML()}</div>
-            <div id="fuelReportPanel" class="report-panel">${getFuelReportHTML()}</div>
-            <div id="expensesReportPanel" class="report-panel">${getExpensesReportHTML()}</div>
-            <div id="attendanceReportPanel" class="report-panel">${getAttendanceReportHTML()}</div>
-            <div id="payrollReportPanel" class="report-panel">${getPayrollReportHTML()}</div>
-            <div id="incentivesReportPanel" class="report-panel">${getIncentivesReportHTML()}</div>
-            <div id="documentsReportPanel" class="report-panel">${getDocumentsReportHTML()}</div>
-            <div id="supervisorsReportPanel" class="report-panel">${getSupervisorsReportHTML()}</div>
-            <div id="auditReportPanel" class="report-panel">${getAuditReportHTML()}</div>
-        `;
-        
-        // Load all report data
-        loadVehiclesReport();
-        loadDriversReport();
-        loadTripsReport();
-        loadMaintenanceReport();
-        loadFuelReport();
-        loadExpensesReport();
-        loadAttendanceReport();
-        loadPayrollReport();
-        loadIncentivesReport();
-        loadDocumentsReport();
-        loadSupervisorsReport();
-        loadAuditReport();
-    }
-
-    // ============================================================
-    //  REPORT GENERATORS - COMPLETE DATA
-    // ============================================================
-    function getVehiclesReportHTML() {
-        return `<div class="card">
-            <div class="card-title">🚛 All Vehicles</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Filter by Contract</label><select id="vFilterContract" onchange="loadVehiclesReport()"><option value="">All Contracts</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Status</label><select id="vFilterStatus" onchange="loadVehiclesReport()"><option value="">All Status</option><option value="Active">Active</option><option value="Maintenance">Maintenance</option><option value="Inactive">Inactive</option></select></div>
-                <button onclick="loadVehiclesReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportVehiclesReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportVehiclesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="vehiclesReportTable"></div>
-        </div>`;
-    }
-
-    function loadVehiclesReport() {
-        const contractId = document.getElementById('vFilterContract')?.value;
-        const status = document.getElementById('vFilterStatus')?.value;
-        let data = vehicles;
-        if (contractId) data = data.filter(v => v.contractId === contractId);
-        if (status) data = data.filter(v => v.status === status);
-        
-        const table = document.getElementById('vehiclesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${vehicles.length} vehicles</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Reg Number</th><th>Type</th><th>Model</th><th>Contract</th><th>Status</th><th>Insurance Expiry</th></tr></thead>
-                <tbody>${data.map(v => `<tr><td>${v.reg || '-'}</td><td>${v.type || '-'}</td><td>${v.model || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status || 'Unknown'}</span></td><td>${v.insuranceExpiry || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getDriversReportHTML() {
-        return `<div class="card">
-            <div class="card-title">👤 All Drivers</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Filter by Contract</label><select id="dFilterContract" onchange="loadDriversReport()"><option value="">All Contracts</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Status</label><select id="dFilterStatus" onchange="loadDriversReport()"><option value="">All Status</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="On Leave">On Leave</option></select></div>
-                <button onclick="loadDriversReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportDriversReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportDriversPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="driversReportTable"></div>
-        </div>`;
-    }
-
-    function loadDriversReport() {
-        const contractId = document.getElementById('dFilterContract')?.value;
-        const status = document.getElementById('dFilterStatus')?.value;
-        let data = drivers;
-        if (contractId) data = data.filter(d => d.contractId === contractId);
-        if (status) data = data.filter(d => d.status === status);
-        
-        const table = document.getElementById('driversReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${drivers.length} drivers</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Name</th><th>License</th><th>Mobile</th><th>Contract</th><th>Status</th><th>Joining Date</th></tr></thead>
-                <tbody>${data.map(d => `<tr><td>${d.name || '-'}</td><td>${d.license || '-'}</td><td>${d.mobile || '-'}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status || 'Unknown'}</span></td><td>${d.joiningDate || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getTripsReportHTML() {
-        return `<div class="card">
-            <div class="card-title">📅 All Trips</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="tFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="tFilterTo"></div>
-                <div class="form-group"><label>Contract</label><select id="tFilterContract"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <button onclick="loadTripsReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportTripsReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportTripsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="tripsReportTable"></div>
-        </div>`;
-    }
-
-    function loadTripsReport() {
-        const from = document.getElementById('tFilterFrom')?.value;
-        const to = document.getElementById('tFilterTo')?.value;
-        const contractId = document.getElementById('tFilterContract')?.value;
-        let data = assignments;
-        if (from) data = data.filter(a => a.date >= from);
-        if (to) data = data.filter(a => a.date <= to);
-        if (contractId) data = data.filter(a => a.contractId === contractId);
-        
-        const table = document.getElementById('tripsReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${assignments.length} trips</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Start Location</th><th>End Location</th><th>Status</th></tr></thead>
-                <tbody>${data.map(a => `<tr><td>${a.date || '-'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td>${contracts.find(c=>c.id===a.contractId)?.name || '-'}</td><td>${a.startLoc || '-'}</td><td>${a.endLoc || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getMaintenanceReportHTML() {
-        return `<div class="card">
-            <div class="card-title">🔧 All Maintenance Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Status</label><select id="mFilterStatus" onchange="loadMaintenanceReport()"><option value="">All</option><option value="Pending">Pending</option><option value="Assigned">Assigned</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option></select></div>
-                <button onclick="loadMaintenanceReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportMaintenanceReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportMaintenancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="maintenanceReportTable"></div>
-        </div>`;
-    }
-
-    function loadMaintenanceReport() {
-        const status = document.getElementById('mFilterStatus')?.value;
-        let data = maintenance;
-        if (status) data = data.filter(m => m.status === status);
-        
-        const table = document.getElementById('maintenanceReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${maintenance.length} maintenance records</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Vehicle</th><th>Description</th><th>Mechanic</th><th>Status</th><th>Cost</th><th>Date</th></tr></thead>
-                <tbody>${data.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${m.mechanic || '-'}</td><td><span class="status-badge ${m.status==='Completed'?'status-completed':'status-pending'}">${m.status || 'Pending'}</span></td><td>₹${m.cost || 0}</td><td>${m.date || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getFuelReportHTML() {
-        return `<div class="card">
-            <div class="card-title">⛽ All Fuel Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="fFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="fFilterTo"></div>
-                <div class="form-group"><label>Vehicle</label><select id="fFilterVehicle"><option value="">All</option>${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <button onclick="loadFuelReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportFuelReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportFuelPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="fuelReportTable"></div>
-        </div>`;
-    }
-
-    function loadFuelReport() {
-        const from = document.getElementById('fFilterFrom')?.value;
-        const to = document.getElementById('fFilterTo')?.value;
-        const vehicleId = document.getElementById('fFilterVehicle')?.value;
-        let data = fuelRecords;
-        if (from) data = data.filter(f => f.date >= from);
-        if (to) data = data.filter(f => f.date <= to);
-        if (vehicleId) data = data.filter(f => f.vehicleId === vehicleId);
-        
-        const totalCost = data.reduce((s, f) => s + (f.cost || 0), 0);
-        const totalLiters = data.reduce((s, f) => s + (f.liters || 0), 0);
-        
-        const table = document.getElementById('fuelReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Total Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Liters: <span>${totalLiters.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Cost: <span>₹${totalCost.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost (₹)</th></tr></thead>
-                <tbody>${data.map(f => `<tr><td>${f.date || '-'}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters || 0}</td><td>₹${f.cost || 0}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getExpensesReportHTML() {
-        return `<div class="card">
-            <div class="card-title">💰 All Expenses</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="eFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="eFilterTo"></div>
-                <div class="form-group"><label>Type</label><select id="eFilterType"><option value="">All</option><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Driver</option><option>Other</option></select></div>
-                <button onclick="loadExpensesReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportExpensesReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportExpensesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="expensesReportTable"></div>
-        </div>`;
-    }
-
-    function loadExpensesReport() {
-        const from = document.getElementById('eFilterFrom')?.value;
-        const to = document.getElementById('eFilterTo')?.value;
-        const type = document.getElementById('eFilterType')?.value;
-        let data = expenses;
-        if (from) data = data.filter(e => e.date >= from);
-        if (to) data = data.filter(e => e.date <= to);
-        if (type) data = data.filter(e => e.type === type);
-        
-        const totalAmount = data.reduce((s, e) => s + (e.amount || 0), 0);
-        
-        const table = document.getElementById('expensesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Total Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Amount: <span>₹${totalAmount.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount (₹)</th><th>Description</th></tr></thead>
-                <tbody>${data.map(e => `<tr><td>${e.date || '-'}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type || '-'}</td><td>₹${e.amount || 0}</td><td>${e.description || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getAttendanceReportHTML() {
-        return `<div class="card">
-            <div class="card-title">📋 All Attendance Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="aFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="aFilterTo"></div>
-                <div class="form-group"><label>Driver</label><select id="aFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <button onclick="loadAttendanceReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportAttendanceReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportAttendancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="attendanceReportTable"></div>
-        </div>`;
-    }
-
-    function loadAttendanceReport() {
-        const from = document.getElementById('aFilterFrom')?.value;
-        const to = document.getElementById('aFilterTo')?.value;
-        const driverId = document.getElementById('aFilterDriver')?.value;
-        let data = attendance;
-        if (from) data = data.filter(a => a.date >= from);
-        if (to) data = data.filter(a => a.date <= to);
-        if (driverId) data = data.filter(a => a.driverId === driverId);
-        
-        const present = data.filter(a => a.status === 'Present').length;
-        const absent = data.filter(a => a.status === 'Absent').length;
-        const leave = data.filter(a => a.status === 'Leave').length;
-        
-        const table = document.getElementById('attendanceReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Total: <span>${data.length}</span></div>
-                <div class="report-summary-item">Present: <span>${present}</span></div>
-                <div class="report-summary-item">Absent: <span>${absent}</span></div>
-                <div class="report-summary-item">Leave: <span>${leave}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Remarks</th></tr></thead>
-                <tbody>${data.map(a => `<tr><td>${a.date || '-'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status || '-'}</span></td><td>${a.remarks || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getPayrollReportHTML() {
-        return `<div class="card">
-            <div class="card-title">💳 All Payroll Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Month</label><input type="month" id="pFilterMonth"></div>
-                <div class="form-group"><label>Driver</label><select id="pFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <button onclick="loadPayrollReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportPayrollReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportPayrollPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="payrollReportTable"></div>
-        </div>`;
-    }
-
-    function loadPayrollReport() {
-        const month = document.getElementById('pFilterMonth')?.value;
-        const driverId = document.getElementById('pFilterDriver')?.value;
-        let data = payroll;
-        if (month) data = data.filter(p => p.month === month);
-        if (driverId) data = data.filter(p => p.driverId === driverId);
-        
-        const totalBasic = data.reduce((s, p) => s + (p.basic || 0), 0);
-        const totalIncentive = data.reduce((s, p) => s + (p.incentive || 0), 0);
-        const totalDeduction = data.reduce((s, p) => s + (p.deduction || 0), 0);
-        const totalNet = data.reduce((s, p) => s + ((p.basic||0) + (p.incentive||0) - (p.deduction||0)), 0);
-        
-        const table = document.getElementById('payrollReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Basic: <span>₹${totalBasic.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Incentive: <span>₹${totalIncentive.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Deduction: <span>₹${totalDeduction.toFixed(2)}</span></div>
-                <div class="report-summary-item">Net Payable: <span>₹${totalNet.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Driver</th><th>Month</th><th>Basic (₹)</th><th>Incentive (₹)</th><th>Deduction (₹)</th><th>Net Salary (₹)</th></tr></thead>
-                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month || '-'}</td><td>₹${p.basic || 0}</td><td>₹${p.incentive || 0}</td><td>₹${p.deduction || 0}</td><td><strong>₹${((p.basic||0) + (p.incentive||0) - (p.deduction||0)).toFixed(2)}</strong></td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getIncentivesReportHTML() {
-        return `<div class="card">
-            <div class="card-title">⭐ All Incentives</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Driver</label><select id="iFilterDriver" onchange="loadIncentivesReport()"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <button onclick="loadIncentivesReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportIncentivesReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportIncentivesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="incentivesReportTable"></div>
-        </div>`;
-    }
-
-    function loadIncentivesReport() {
-        const driverId = document.getElementById('iFilterDriver')?.value;
-        let data = incentives;
-        if (driverId) data = data.filter(i => i.driverId === driverId);
-        
-        const totalAmount = data.reduce((s, i) => s + (i.amount || 0), 0);
-        
-        const table = document.getElementById('incentivesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Total Incentives: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Amount: <span>₹${totalAmount.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Driver</th><th>Amount (₹)</th><th>Reason</th><th>Date</th></tr></thead>
-                <tbody>${data.map(i => `<tr><td>${drivers.find(d=>d.id===i.driverId)?.name || '-'}</td><td>₹${i.amount || 0}</td><td>${i.reason || '-'}</td><td>${i.date || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getDocumentsReportHTML() {
-        return `<div class="card">
-            <div class="card-title">📁 All Documents</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Type</label><select id="docFilterType" onchange="loadDocumentsReport()"><option value="">All</option><option>RC</option><option>Insurance</option><option>License</option><option>Permit</option><option>Other</option></select></div>
-                <button onclick="loadDocumentsReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportDocumentsReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportDocumentsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="documentsReportTable"></div>
-        </div>`;
-    }
-
-    function loadDocumentsReport() {
-        const type = document.getElementById('docFilterType')?.value;
-        let data = documents;
-        if (type) data = data.filter(d => d.type === type);
-        
-        const table = document.getElementById('documentsReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${documents.length} documents</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Remarks</th><th>Preview</th></tr></thead>
-                <tbody>${data.map(d => `<tr><td>${d.date || '-'}</td><td>${d.type || '-'}</td><td>${d.associatedName || d.associatedId || '-'}</td><td>${d.remarks || '-'}</td><td>${d.dataUrl ? `<img src="${d.dataUrl}" class="document-preview" onclick="window.open('${d.dataUrl}')">` : '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getSupervisorsReportHTML() {
-        return `<div class="card">
-            <div class="card-title">👥 All Supervisors</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Contract</label><select id="sFilterContract" onchange="loadSupervisorsReport()"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <button onclick="loadSupervisorsReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportSupervisorsReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportSupervisorsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="supervisorsReportTable"></div>
-        </div>`;
-    }
-
-    function loadSupervisorsReport() {
-        const contractId = document.getElementById('sFilterContract')?.value;
-        let data = supervisors;
-        if (contractId) data = data.filter(s => s.contractId === contractId);
-        
-        const table = document.getElementById('supervisorsReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${supervisors.length} supervisors</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Name</th><th>Email</th><th>Contract</th><th>Permissions</th></tr></thead>
-                <tbody>${data.map(s => `<tr><td>${s.name || '-'}</td><td>${s.email || '-'}</td><td>${contracts.find(c=>c.id===s.contractId)?.name || '-'}</td><td>${(s.permissions || []).map(p => MODULES[p]?.label || p).join(', ') || 'None'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    function getAuditReportHTML() {
-        return `<div class="card">
-            <div class="card-title">📜 All Audit Logs</div>
-            <div class="filter-row">
-                <div class="form-group"><label>User</label><input type="text" id="auditFilterUser" placeholder="Search user..."></div>
-                <div class="form-group"><label>Module</label><select id="auditFilterModule"><option value="">All</option>${Object.entries(MODULES).map(([key, val]) => `<option value="${key}">${val.label}</option>`).join('')}</select></div>
-                <button onclick="loadAuditReport()"><i class="fas fa-filter"></i> Apply</button>
-                <button onclick="exportAuditReport()"><i class="fas fa-file-excel"></i> Excel</button>
-                <button onclick="exportAuditPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-            </div>
-            <div id="auditReportTable"></div>
-        </div>`;
-    }
-
-    function loadAuditReport() {
-        const user = document.getElementById('auditFilterUser')?.value?.toLowerCase();
-        const module = document.getElementById('auditFilterModule')?.value;
-        let data = auditLogs;
-        if (user) data = data.filter(a => (a.user || '').toLowerCase().includes(user));
-        if (module) data = data.filter(a => a.module === module);
-        
-        const table = document.getElementById('auditReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${auditLogs.length} audit logs</div>
-            <div class="table-container"><table>
-                <thead><tr><th>User</th><th>Date/Time</th><th>Module</th><th>Action</th><th>Details</th></tr></thead>
-                <tbody>${data.map(a => `<tr><td>${a.user || '-'}</td><td>${a.timestamp || '-'}</td><td>${a.module || '-'}</td><td>${a.action || '-'}</td><td>${a.details || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-    }
-
-    // ============================================================
-    //  EXPORT FUNCTIONS - ALL DATA
-    // ============================================================
-    function exportReport(data, columns, filename, sheetName) {
-        const wsData = data.map(item => {
-            const row = {};
-            columns.forEach(col => {
-                row[col.label] = col.value(item);
-            });
-            return row;
-        });
-        const ws = XLSX.utils.json_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        XLSX.writeFile(wb, filename + '.xlsx');
-        notify('✅ ' + filename + ' exported successfully!');
-    }
-
-    window.exportVehiclesReport = () => {
-        const cols = [
-            { label: 'Reg Number', value: v => v.reg || '-' },
-            { label: 'Type', value: v => v.type || '-' },
-            { label: 'Model', value: v => v.model || '-' },
-            { label: 'Contract', value: v => contracts.find(c=>c.id===v.contractId)?.name || '-' },
-            { label: 'Status', value: v => v.status || '-' },
-            { label: 'Insurance Expiry', value: v => v.insuranceExpiry || '-' }
-        ];
-        exportReport(vehicles, cols, 'Vehicles_Report', 'Vehicles');
-    };
-
-    window.exportDriversReport = () => {
-        const cols = [
-            { label: 'Name', value: d => d.name || '-' },
-            { label: 'License', value: d => d.license || '-' },
-            { label: 'Mobile', value: d => d.mobile || '-' },
-            { label: 'Contract', value: d => contracts.find(c=>c.id===d.contractId)?.name || '-' },
-            { label: 'Status', value: d => d.status || '-' },
-            { label: 'Joining Date', value: d => d.joiningDate || '-' }
-        ];
-        exportReport(drivers, cols, 'Drivers_Report', 'Drivers');
-    };
-
-    window.exportTripsReport = () => {
-        const cols = [
-            { label: 'Date', value: a => a.date || '-' },
-            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
-            { label: 'Vehicle', value: a => vehicles.find(v=>v.id===a.vehicleId)?.reg || '-' },
-            { label: 'Contract', value: a => contracts.find(c=>c.id===a.contractId)?.name || '-' },
-            { label: 'Start Location', value: a => a.startLoc || '-' },
-            { label: 'End Location', value: a => a.endLoc || '-' },
-            { label: 'Status', value: a => a.status || 'Open' }
-        ];
-        exportReport(assignments, cols, 'Trips_Report', 'Trips');
-    };
-
-    window.exportMaintenanceReport = () => {
-        const cols = [
-            { label: 'Vehicle', value: m => vehicles.find(v=>v.id===m.vehicleId)?.reg || '-' },
-            { label: 'Description', value: m => m.description || '-' },
-            { label: 'Mechanic', value: m => m.mechanic || '-' },
-            { label: 'Status', value: m => m.status || 'Pending' },
-            { label: 'Cost', value: m => m.cost || 0 },
-            { label: 'Date', value: m => m.date || '-' }
-        ];
-        exportReport(maintenance, cols, 'Maintenance_Report', 'Maintenance');
-    };
-
-    window.exportFuelReport = () => {
-        const cols = [
-            { label: 'Date', value: f => f.date || '-' },
-            { label: 'Vehicle', value: f => vehicles.find(v=>v.id===f.vehicleId)?.reg || '-' },
-            { label: 'Liters', value: f => f.liters || 0 },
-            { label: 'Cost', value: f => f.cost || 0 }
-        ];
-        exportReport(fuelRecords, cols, 'Fuel_Report', 'Fuel');
-    };
-
-    window.exportExpensesReport = () => {
-        const cols = [
-            { label: 'Date', value: e => e.date || '-' },
-            { label: 'Vehicle', value: e => vehicles.find(v=>v.id===e.vehicleId)?.reg || '-' },
-            { label: 'Type', value: e => e.type || '-' },
-            { label: 'Amount', value: e => e.amount || 0 },
-            { label: 'Description', value: e => e.description || '-' }
-        ];
-        exportReport(expenses, cols, 'Expenses_Report', 'Expenses');
-    };
-
-    window.exportAttendanceReport = () => {
-        const cols = [
-            { label: 'Date', value: a => a.date || '-' },
-            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
-            { label: 'Status', value: a => a.status || '-' },
-            { label: 'Remarks', value: a => a.remarks || '-' }
-        ];
-        exportReport(attendance, cols, 'Attendance_Report', 'Attendance');
-    };
-
-    window.exportPayrollReport = () => {
-        const cols = [
-            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
-            { label: 'Month', value: p => p.month || '-' },
-            { label: 'Basic', value: p => p.basic || 0 },
-            { label: 'Incentive', value: p => p.incentive || 0 },
-            { label: 'Deduction', value: p => p.deduction || 0 },
-            { label: 'Net Salary', value: p => ((p.basic||0) + (p.incentive||0) - (p.deduction||0)).toFixed(2) }
-        ];
-        exportReport(payroll, cols, 'Payroll_Report', 'Payroll');
-    };
-
-    window.exportIncentivesReport = () => {
-        const cols = [
-            { label: 'Driver', value: i => drivers.find(d=>d.id===i.driverId)?.name || '-' },
-            { label: 'Amount', value: i => i.amount || 0 },
-            { label: 'Reason', value: i => i.reason || '-' },
-            { label: 'Date', value: i => i.date || '-' }
-        ];
-        exportReport(incentives, cols, 'Incentives_Report', 'Incentives');
-    };
-
-    window.exportDocumentsReport = () => {
-        const cols = [
-            { label: 'Date', value: d => d.date || '-' },
-            { label: 'Type', value: d => d.type || '-' },
-            { label: 'Associated', value: d => d.associatedName || d.associatedId || '-' },
-            { label: 'Remarks', value: d => d.remarks || '-' }
-        ];
-        exportReport(documents, cols, 'Documents_Report', 'Documents');
-    };
-
-    window.exportSupervisorsReport = () => {
-        const cols = [
-            { label: 'Name', value: s => s.name || '-' },
-            { label: 'Email', value: s => s.email || '-' },
-            { label: 'Contract', value: s => contracts.find(c=>c.id===s.contractId)?.name || '-' },
-            { label: 'Permissions', value: s => (s.permissions || []).map(p => MODULES[p]?.label || p).join(', ') || 'None' }
-        ];
-        exportReport(supervisors, cols, 'Supervisors_Report', 'Supervisors');
-    };
-
-    window.exportAuditReport = () => {
-        const cols = [
-            { label: 'User', value: a => a.user || '-' },
-            { label: 'Date/Time', value: a => a.timestamp || '-' },
-            { label: 'Module', value: a => a.module || '-' },
-            { label: 'Action', value: a => a.action || '-' },
-            { label: 'Details', value: a => a.details || '-' }
-        ];
-        exportReport(auditLogs, cols, 'Audit_Report', 'Audit');
-    };
-
-    // PDF Export functions
-    function exportPDF(elementId, filename) {
-        const el = document.getElementById(elementId);
-        if (!el) return;
-        html2pdf().from(el).set({ margin: 0.5, filename: filename + '.pdf' }).save();
-        notify('✅ ' + filename + ' PDF exported!');
-    }
-
-    window.exportVehiclesPDF = () => exportPDF('vehiclesReportTable', 'Vehicles_Report');
-    window.exportDriversPDF = () => exportPDF('driversReportTable', 'Drivers_Report');
-    window.exportTripsPDF = () => exportPDF('tripsReportTable', 'Trips_Report');
-    window.exportMaintenancePDF = () => exportPDF('maintenanceReportTable', 'Maintenance_Report');
-    window.exportFuelPDF = () => exportPDF('fuelReportTable', 'Fuel_Report');
-    window.exportExpensesPDF = () => exportPDF('expensesReportTable', 'Expenses_Report');
-    window.exportAttendancePDF = () => exportPDF('attendanceReportTable', 'Attendance_Report');
-    window.exportPayrollPDF = () => exportPDF('payrollReportTable', 'Payroll_Report');
-    window.exportIncentivesPDF = () => exportPDF('incentivesReportTable', 'Incentives_Report');
-    window.exportDocumentsPDF = () => exportPDF('documentsReportTable', 'Documents_Report');
-    window.exportSupervisorsPDF = () => exportPDF('supervisorsReportTable', 'Supervisors_Report');
-    window.exportAuditPDF = () => exportPDF('auditReportTable', 'Audit_Report');
-
-    // ============================================================
-    //  OTHER PAGES (Simplified)
-    // ============================================================
     function renderVehiclesPage() {
         const container = document.getElementById('vehiclesContent');
         if (!container || (!hasPermission('vehicles') && !canEdit())) return;
@@ -1226,42 +575,58 @@
         `;
     }
 
+    function renderReportsPage() {
+        const container = document.getElementById('reportsContent');
+        if (!container || (!hasPermission('reports') && !canEdit())) return;
+        container.innerHTML = `
+            <div class="page-header"><h1>📊 Reports</h1></div>
+            <div class="report-tabs">
+                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
+                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
+                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
+                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
+                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
+                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
+                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
+            </div>
+            <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div id="vehiclesReportTable"><div class="table-container"><table><thead><tr><th>Reg Number</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="driversReportPanel" class="report-panel"><div class="card"><div id="driversReportTable"><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th></tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="tripsReportPanel" class="report-panel"><div class="card"><div id="tripsReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="fuelReportPanel" class="report-panel"><div class="card"><div id="fuelReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="expensesReportPanel" class="report-panel"><div class="card"><div id="expensesReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="attendanceReportPanel" class="report-panel"><div class="card"><div id="attendanceReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
+            <div id="payrollReportPanel" class="report-panel"><div class="card"><div id="payrollReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Net Salary</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basic}</td><td><strong>₹${(p.basic + p.incentive - p.deduction)}</strong></td></tr>`).join('')}</tbody></table></div></div></div></div>
+        `;
+    }
+
     function renderAuditPage() {
         const container = document.getElementById('auditContent');
         if (!container || (!hasPermission('audit') && !canEdit())) return;
         container.innerHTML = `
-            <div class="card"><div class="card-title">📜 Audit Logs</div><div class="table-container"><table><thead><tr><th>User</th><th>Date/Time</th><th>Module</th><th>Action</th><th>Details</th></tr></thead><tbody>${auditLogs.map(a => `<tr><td>${a.user || '-'}</td><td>${a.timestamp || '-'}</td><td>${a.module || '-'}</td><td>${a.action || '-'}</td><td>${a.details || '-'}</td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card"><div class="card-title">📜 Audit Logs</div><div class="table-container"><table><thead><tr><th>User</th><th>Date/Time</th><th>Module</th><th>Action</th></tr></thead><tbody>${auditLogs.map(a => `<tr><td>${a.user || '-'}</td><td>${a.timestamp || '-'}</td><td>${a.module || '-'}</td><td>${a.action || '-'}</td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
-    // ============================================================
-    //  UI HELPERS
-    // ============================================================
-    window.switchReportTab = (tab) => {
-        document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`${tab}ReportPanel`)?.classList.add('active');
-        if (event && event.target) event.target.classList.add('active');
-    };
-
-    window.showPage = (pageId) => {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(pageId)?.classList.add('active');
-        if (pageId === 'reportsPage') renderReportsPage();
-    };
-
-    window.toggleTheme = () => {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    };
-
-    window.printPayroll = (id) => {
-        const p = payroll.find(p => p.id === id);
-        if (!p) return;
-        const d = drivers.find(d => d.id === p.driverId);
-        const net = p.basic + p.incentive - p.deduction;
-        alert(`📄 Salary Slip\nDriver: ${d?.name}\nMonth: ${p.month}\nBasic: ₹${p.basic}\nIncentives: ₹${p.incentive}\nDeductions: ₹${p.deduction}\nNet Salary: ₹${net}`);
-    };
+    function renderAllPages() {
+        renderDashboardPage();
+        renderVehiclesPage();
+        renderDriversPage();
+        renderAssignmentsPage();
+        renderMaintenancePage();
+        renderFuelPage();
+        renderExpensesPage();
+        renderInsurancePage();
+        renderDocumentsPage();
+        renderAttendancePage();
+        renderPayrollPage();
+        renderIncentivesPage();
+        renderSupervisorsPage();
+        renderContractsPage();
+        renderReportsPage();
+        renderAuditPage();
+        renderLogo();
+        buildNavigation();
+    }
 
     // ============================================================
     //  CRUD OPERATIONS
@@ -1316,9 +681,7 @@
             driverId: document.getElementById('assignDriverId')?.value,
             vehicleId: document.getElementById('assignVehicleId')?.value,
             contractId: document.getElementById('assignContractId')?.value,
-            status: 'Open',
-            startLoc: document.getElementById('assignStartLoc')?.value,
-            endLoc: document.getElementById('assignEndLoc')?.value
+            status: 'Open'
         };
         const id = await saveToFirestore('assignments', data);
         if (id) { assignments.push({ id, ...data }); renderAllPages(); notify("Trip created"); }
@@ -1383,8 +746,7 @@
             date: document.getElementById('expenseDate')?.value,
             vehicleId: document.getElementById('expenseVehicleId')?.value,
             type: document.getElementById('expenseType')?.value,
-            amount: parseFloat(document.getElementById('expenseAmount')?.value),
-            description: document.getElementById('expenseDesc')?.value
+            amount: parseFloat(document.getElementById('expenseAmount')?.value)
         };
         if (!data.vehicleId || !data.amount) return notify("Select vehicle and amount");
         const id = await saveToFirestore('expenses', data);
@@ -1561,58 +923,98 @@
         }
     };
 
-    function renderAllPages() {
-        renderDashboardPage();
-        renderVehiclesPage();
-        renderDriversPage();
-        renderAssignmentsPage();
-        renderMaintenancePage();
-        renderFuelPage();
-        renderExpensesPage();
-        renderInsurancePage();
-        renderDocumentsPage();
-        renderAttendancePage();
-        renderPayrollPage();
-        renderIncentivesPage();
-        renderSupervisorsPage();
-        renderContractsPage();
-        renderAuditPage();
-        renderReportsPage();
-        renderLogo();
-        buildNavigation();
-    }
+    window.switchReportTab = (tab) => {
+        document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`${tab}ReportPanel`)?.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
+    };
+
+    window.showPage = (pageId) => {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId)?.classList.add('active');
+    };
+
+    window.toggleTheme = () => {
+        document.body.classList.toggle('dark');
+        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    };
+
+    window.printPayroll = (id) => {
+        const p = payroll.find(p => p.id === id);
+        if (!p) return;
+        const d = drivers.find(d => d.id === p.driverId);
+        const net = p.basic + p.incentive - p.deduction;
+        alert(`📄 Salary Slip\nDriver: ${d?.name}\nMonth: ${p.month}\nBasic: ₹${p.basic}\nIncentives: ₹${p.incentive}\nDeductions: ₹${p.deduction}\nNet Salary: ₹${net}`);
+    };
 
     // ============================================================
-    //  AUTH
+    //  AUTH - FIXED: Proper supervisor login from any device
     // ============================================================
     async function handleLogin(email, password) {
         try {
+            // Step 1: Authenticate with Firebase
             const userCred = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCred.user;
+            
+            // Step 2: Check if it's the super admin
             if (email === 'harishspeedel@gmail.com') {
-                currentUser = userCred.user;
+                currentUser = user;
                 userRole = 'superadmin';
                 userPermissions = Object.keys(MODULES);
                 userData = { name: 'Super Admin', permissions: userPermissions };
                 await loadAllData();
-            } else {
-                const sup = supervisors.find(s => s.email === email);
-                if (sup) {
-                    currentUser = userCred.user;
-                    userRole = 'supervisor';
-                    userPermissions = sup.permissions || [];
-                    userData = sup;
-                    await loadAllData();
-                } else {
-                    await signOut(auth);
-                    return false;
-                }
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                document.getElementById('currentUserName').innerText = 'Super Admin';
+                showPage('dashboardPage');
+                notify("✅ Welcome Super Admin!");
+                return true;
             }
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('currentUserName').innerText = userData?.name || email.split('@')[0];
-            return true;
-        } catch(e) {
-            console.error("Login error:", e);
+            
+            // Step 3: For other users, load supervisors data first
+            // This is the key fix - load supervisors before checking
+            if (!isDataLoaded) {
+                const snap = await getDocs(collection(db, 'supervisors'));
+                supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                isDataLoaded = true;
+            }
+            
+            // Step 4: Find the supervisor in the loaded data
+            const sup = supervisors.find(s => s.email === email);
+            
+            if (sup) {
+                currentUser = user;
+                userRole = 'supervisor';
+                userPermissions = sup.permissions || [];
+                userData = sup;
+                
+                // Load all data for the supervisor
+                await loadAllData();
+                
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
+                showPage('dashboardPage');
+                notify(`✅ Welcome ${sup.name || 'Supervisor'}!`);
+                return true;
+            } else {
+                // User exists in Auth but not in supervisors collection
+                await signOut(auth);
+                document.getElementById('loginError').innerText = '❌ Account not authorized. Please contact admin.';
+                return false;
+            }
+        } catch(error) {
+            console.error("Login error:", error);
+            let msg = "Invalid credentials";
+            if (error.code === 'auth/user-not-found') {
+                msg = "❌ User not found. Please check your email.";
+            } else if (error.code === 'auth/wrong-password') {
+                msg = "❌ Incorrect password. Please try again.";
+            } else if (error.code === 'auth/too-many-requests') {
+                msg = "❌ Too many failed attempts. Please try again later.";
+            }
+            document.getElementById('loginError').innerText = msg;
             return false;
         }
     }
@@ -1622,35 +1024,85 @@
         currentUser = null;
         userRole = null;
         userPermissions = [];
+        isDataLoaded = false;
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('appContainer').style.display = 'none';
+        notify("👋 Logged out successfully");
     }
 
     async function setupFirstAdmin() {
         try {
             await createUserWithEmailAndPassword(auth, 'harishspeedel@gmail.com', 'SPDL@8055');
             console.log("Admin account ready");
-        } catch(e) {}
+        } catch(e) {
+            // Admin already exists or other error - ignore
+        }
     }
 
     function initApp() {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') document.body.classList.add('dark');
 
-        const loginHtml = `<div class="login-container" id="loginScreen"><div class="login-card"><h1>⚡ SPEEDEL EXPRESS</h1><p>Fleet Management - Enterprise Edition</p><input type="email" id="loginEmail" placeholder="Email"><input type="password" id="loginPassword" placeholder="Password"><div id="loginError" class="error-message"></div><button id="loginBtn">Login</button></div></div>`;
+        const loginHtml = `
+            <div class="login-container" id="loginScreen">
+                <div class="login-card">
+                    <h1>⚡ SPEEDEL EXPRESS</h1>
+                    <p>Fleet Management - Enterprise Edition</p>
+                    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+                    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+                    <div id="loginError" class="error-message"></div>
+                    <button id="loginBtn">Login</button>
+                    <p style="margin-top:15px;font-size:0.7rem;color:var(--gray)">
+                        <i class="fas fa-cloud"></i> Access from anywhere
+                    </p>
+                </div>
+            </div>
+        `;
 
-        const appHtml = `<div id="appContainer" style="display:none"><div class="firebase-status"><i class="fas fa-cloud-upload-alt"></i> Cloud Sync</div><button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button><div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div><div class="sidebar" id="sidebar"><div class="sidebar-header"><div class="logo-preview" id="logoContainer"><i class="fas fa-truck"></i></div><h2>SPEEDEL EXPRESS</h2></div><div class="nav-links" id="navLinksContainer"></div><div class="sidebar-footer"><div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div><button class="logout-btn" onclick="handleLogout()">Logout</button></div></div><div class="main-content"><div id="dashboardPage" class="page"><div id="dashboardContent"></div></div><div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div><div id="driversPage" class="page"><div id="driversContent"></div></div><div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div><div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div><div id="fuelPage" class="page"><div id="fuelContent"></div></div><div id="expensesPage" class="page"><div id="expensesContent"></div></div><div id="insurancePage" class="page"><div id="insuranceContent"></div></div><div id="documentsPage" class="page"><div id="documentsContent"></div></div><div id="attendancePage" class="page"><div id="attendanceContent"></div></div><div id="payrollPage" class="page"><div id="payrollContent"></div></div><div id="incentivesPage" class="page"><div id="incentivesContent"></div></div><div id="contractsPage" class="page"><div id="contractsContent"></div></div><div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div><div id="reportsPage" class="page"><div id="reportsContent"></div></div><div id="auditPage" class="page"><div id="auditContent"></div></div></div><div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div></div>`;
+        const appHtml = `
+            <div id="appContainer" style="display:none">
+                <div class="firebase-status"><i class="fas fa-cloud-upload-alt"></i> Cloud Sync</div>
+                <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+                <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+                <div class="sidebar" id="sidebar">
+                    <div class="sidebar-header">
+                        <div class="logo-preview" id="logoContainer"><i class="fas fa-truck"></i></div>
+                        <h2>SPEEDEL EXPRESS</h2>
+                    </div>
+                    <div class="nav-links" id="navLinksContainer"></div>
+                    <div class="sidebar-footer">
+                        <div class="user-info"><i class="fas fa-user-circle"></i><span id="currentUserName"></span></div>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    </div>
+                </div>
+                <div class="main-content">
+                    <div id="dashboardPage" class="page"><div id="dashboardContent"></div></div>
+                    <div id="vehiclesPage" class="page"><div id="vehiclesContent"></div></div>
+                    <div id="driversPage" class="page"><div id="driversContent"></div></div>
+                    <div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div>
+                    <div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div>
+                    <div id="fuelPage" class="page"><div id="fuelContent"></div></div>
+                    <div id="expensesPage" class="page"><div id="expensesContent"></div></div>
+                    <div id="insurancePage" class="page"><div id="insuranceContent"></div></div>
+                    <div id="documentsPage" class="page"><div id="documentsContent"></div></div>
+                    <div id="attendancePage" class="page"><div id="attendanceContent"></div></div>
+                    <div id="payrollPage" class="page"><div id="payrollContent"></div></div>
+                    <div id="incentivesPage" class="page"><div id="incentivesContent"></div></div>
+                    <div id="contractsPage" class="page"><div id="contractsContent"></div></div>
+                    <div id="supervisorsPage" class="page"><div id="supervisorsContent"></div></div>
+                    <div id="reportsPage" class="page"><div id="reportsContent"></div></div>
+                    <div id="auditPage" class="page"><div id="auditContent"></div></div>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div>
+            </div>
+        `;
 
         document.getElementById('appRoot').innerHTML = loginHtml + appHtml;
 
         document.getElementById('loginBtn').onclick = async () => {
             const email = document.getElementById('loginEmail').value;
             const pwd = document.getElementById('loginPassword').value;
-            if (await handleLogin(email, pwd)) {
-                showPage('dashboardPage');
-            } else {
-                document.getElementById('loginError').innerText = '❌ Invalid credentials. Please check your email and password.';
-            }
+            await handleLogin(email, pwd);
         };
 
         window.toggleSidebar = toggleSidebar;
@@ -1665,8 +1117,16 @@
                     currentUser = user;
                     userRole = 'superadmin';
                     userPermissions = Object.keys(MODULES);
+                    userData = { name: 'Super Admin' };
                     await loadAllData();
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    document.getElementById('currentUserName').innerText = 'Super Admin';
+                    showPage('dashboardPage');
                 } else {
+                    // Load supervisors and check
+                    const snap = await getDocs(collection(db, 'supervisors'));
+                    supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const sup = supervisors.find(s => s.email === email);
                     if (sup) {
                         currentUser = user;
@@ -1674,13 +1134,11 @@
                         userPermissions = sup.permissions || [];
                         userData = sup;
                         await loadAllData();
+                        document.getElementById('loginScreen').style.display = 'none';
+                        document.getElementById('appContainer').style.display = 'flex';
+                        document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
+                        showPage('dashboardPage');
                     }
-                }
-                if (currentUser) {
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContainer').style.display = 'flex';
-                    document.getElementById('currentUserName').innerText = userData?.name || email?.split('@')[0];
-                    showPage('dashboardPage');
                 }
             }
         });
