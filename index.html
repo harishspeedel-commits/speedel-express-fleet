@@ -153,8 +153,6 @@
         .incentive-box { background: var(--success); color: white; padding: 5px 10px; border-radius: 5px; font-weight: 700; }
         .sunday-badge { background: var(--danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; }
         .filter-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .mechanic-badge { background: var(--info); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; }
-        .maintenance-card { border-left: 4px solid var(--danger); }
         .action-btn { padding: 4px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; margin: 2px; }
         .action-btn:hover { transform: scale(1.05); }
         .btn-start { background: var(--secondary); color: white; }
@@ -167,7 +165,8 @@
         .status-timeline .step.active { background: var(--primary); }
         .status-timeline .step.done { background: var(--success); }
         .status-timeline .arrow { color: var(--gray); font-size: 0.6rem; }
-        .mechanic-only { border-left: 3px solid var(--info); }
+        .mechanic-assigned { background: rgba(52, 152, 219, 0.1); border-left: 3px solid var(--info); }
+        .my-job-badge { background: var(--info); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -613,7 +612,7 @@
     }
 
     // ============================================================
-    //  MAINTENANCE PAGE - COMPLETE MECHANIC WORKFLOW
+    //  MAINTENANCE PAGE - FIXED FOR MECHANIC ACCESS
     // ============================================================
     function renderMaintenancePage() {
         const container = document.getElementById('maintenanceContent');
@@ -630,7 +629,7 @@
                 <div class="card"><div class="card-title">🔧 Create Maintenance Request</div><div class="form-vertical">
                     <div class="form-group"><label>Vehicle</label><select id="maintVehicleId">${vehicles.filter(v => v.status !== 'Maintenance').map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
                     <div class="form-group"><label>Issue Description</label><textarea id="maintDesc" rows="2" placeholder="Describe the issue"></textarea></div>
-                    <div class="form-group"><label>Assign Mechanic</label><select id="maintMechanicId">${mechanics.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Assign Mechanic</label><select id="maintMechanicId">${mechanics.map(m => `<option value="${m.uid}">${m.name}</option>`).join('')}</select></div>
                     <div class="form-actions"><button onclick="createMaintenanceRequest()"><i class="fas fa-plus"></i> Create Request</button></div>
                 </div></div>
             `;
@@ -676,6 +675,9 @@
         const isMech = isMechanic();
         const mechanicUid = currentUser?.uid;
         
+        console.log("Mechanic UID:", mechanicUid);
+        console.log("All maintenance jobs:", data);
+        
         table.innerHTML = `
             <div class="table-count">Showing ${data.length} maintenance jobs</div>
             <div class="table-container"><table>
@@ -689,13 +691,15 @@
                 </tr></thead>
                 <tbody>${data.map(m => {
                     const vehicle = vehicles.find(v => v.id === m.vehicleId);
-                    const mechanic = mechanics.find(mech => mech.id === m.mechanicId);
+                    const mechanic = mechanics.find(mech => mech.uid === m.mechanicId);
+                    // Check if this job is assigned to the current mechanic
                     const isAssignedToMe = isMech && m.mechanicId === mechanicUid;
-                    const canUpdate = isAdmin || isAssignedToMe;
+                    
+                    console.log(`Job ${m.id}: mechanicId=${m.mechanicId}, currentUid=${mechanicUid}, isAssigned=${isAssignedToMe}`);
                     
                     let actionButtons = '';
                     
-                    // MECHANIC WORKFLOW: Start → Complete → Ready
+                    // MECHANIC WORKFLOW: Start → Complete → Ready (only for assigned jobs)
                     if (isAssignedToMe || isAdmin) {
                         if (m.status === 'Assigned') {
                             actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'In Progress')" class="action-btn btn-start"><i class="fas fa-play"></i> Start</button>`;
@@ -742,12 +746,13 @@
                     });
                     timelineHtml += `</div>`;
                     
-                    const isMyJob = isAssignedToMe ? '👤 ' : '';
+                    const isMyJob = isAssignedToMe ? '⭐' : '';
+                    const rowClass = isAssignedToMe ? 'mechanic-assigned' : '';
                     
-                    return `<tr class="${isAssignedToMe ? 'mechanic-only' : ''}">
+                    return `<tr class="${rowClass}">
                         <td><strong>${vehicle?.reg || 'Vehicle Deleted'}</strong></td>
                         <td>${m.description || '-'}</td>
-                        <td>${mechanic?.name || 'Unassigned'} ${isAssignedToMe ? '⭐' : ''}</td>
+                        <td>${mechanic?.name || 'Unassigned'} ${isMyJob}</td>
                         <td><span class="status-badge ${statusClass}">${m.status || 'Pending'}</span></td>
                         <td>${timelineHtml}</td>
                         <td>${actionButtons}</td>
@@ -763,18 +768,19 @@
     window.createMaintenanceRequest = async () => {
         const vehicleId = document.getElementById('maintVehicleId')?.value;
         const description = document.getElementById('maintDesc')?.value;
-        const mechanicId = document.getElementById('maintMechanicId')?.value;
+        const mechanicUid = document.getElementById('maintMechanicId')?.value;
         
         if (!vehicleId || !description) {
             notify("⚠️ Please fill vehicle and description");
             return;
         }
         
+        // Get the mechanic's UID (this is the Firebase Auth UID)
         const data = {
             vehicleId: vehicleId,
             description: description,
-            mechanicId: mechanicId || '',
-            status: mechanicId ? 'Assigned' : 'Pending',
+            mechanicId: mechanicUid || '',
+            status: mechanicUid ? 'Assigned' : 'Pending',
             date: new Date().toISOString().split('T')[0],
             createdAt: new Date().toISOString(),
             createdBy: currentUser?.email || 'Unknown',
@@ -1277,7 +1283,7 @@
             <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div class="table-container"><table><thead><tr><th>Reg</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="driversReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th></tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="tripsReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
-            <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Issue</th><th>Mechanic</th><th>Status</th></tr></thead><tbody>${maintenance.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${mechanics.find(me=>me.id===m.mechanicId)?.name || 'Unassigned'}</td><td><span class="status-badge ${m.status==='Ready'?'status-ready':m.status==='Completed'?'status-completed':m.status==='In Progress'?'status-inprogress':m.status==='Assigned'?'status-assigned':'status-pending'}">${m.status || 'Pending'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Issue</th><th>Mechanic</th><th>Status</th></tr></thead><tbody>${maintenance.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${mechanics.find(me=>me.uid===m.mechanicId)?.name || 'Unassigned'}</td><td><span class="status-badge ${m.status==='Ready'?'status-ready':m.status==='Completed'?'status-completed':m.status==='In Progress'?'status-inprogress':m.status==='Assigned'?'status-assigned':'status-pending'}">${m.status || 'Pending'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="fuelReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="expensesReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="attendanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
