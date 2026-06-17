@@ -155,18 +155,19 @@
         .filter-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .mechanic-badge { background: var(--info); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; }
         .maintenance-card { border-left: 4px solid var(--danger); }
-        .action-btn { padding: 4px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+        .action-btn { padding: 4px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; margin: 2px; }
         .action-btn:hover { transform: scale(1.05); }
         .btn-start { background: var(--secondary); color: white; }
         .btn-complete { background: var(--info); color: white; }
         .btn-ready { background: var(--success); color: white; }
         .btn-assign { background: var(--info); color: white; }
         .btn-delete { background: var(--danger); color: white; }
-        .status-timeline { display: flex; gap: 10px; align-items: center; font-size: 0.7rem; }
-        .status-timeline .step { padding: 2px 8px; border-radius: 12px; background: var(--gray); color: white; }
-        .status-timeline .step.active { background: var(--success); }
+        .status-timeline { display: flex; gap: 5px; align-items: center; font-size: 0.65rem; flex-wrap: wrap; }
+        .status-timeline .step { padding: 2px 8px; border-radius: 12px; background: var(--gray); color: white; font-size: 0.6rem; }
+        .status-timeline .step.active { background: var(--primary); }
         .status-timeline .step.done { background: var(--success); }
-        .status-timeline .arrow { color: var(--gray); }
+        .status-timeline .arrow { color: var(--gray); font-size: 0.6rem; }
+        .mechanic-only { border-left: 3px solid var(--info); }
     </style>
 </head>
 <body>
@@ -256,10 +257,6 @@
 
     function isMechanic() {
         return userRole === 'mechanic';
-    }
-
-    function canMarkReady() {
-        return userRole === 'superadmin' || userRole === 'admin' || userRole === 'mechanic';
     }
 
     function getAvailableVehicles() {
@@ -677,6 +674,7 @@
         
         const isAdmin = canEdit();
         const isMech = isMechanic();
+        const mechanicUid = currentUser?.uid;
         
         table.innerHTML = `
             <div class="table-count">Showing ${data.length} maintenance jobs</div>
@@ -692,16 +690,12 @@
                 <tbody>${data.map(m => {
                     const vehicle = vehicles.find(v => v.id === m.vehicleId);
                     const mechanic = mechanics.find(mech => mech.id === m.mechanicId);
-                    const isAssignedToMe = isMech && m.mechanicId === currentUser?.uid;
-                    const canUpdate = isAdmin || isAssignedToMe || userRole === 'supervisor';
-                    
-                    // Status timeline
-                    const steps = ['Pending', 'Assigned', 'In Progress', 'Completed', 'Ready'];
-                    const currentStep = steps.indexOf(m.status);
+                    const isAssignedToMe = isMech && m.mechanicId === mechanicUid;
+                    const canUpdate = isAdmin || isAssignedToMe;
                     
                     let actionButtons = '';
                     
-                    // Mechanic workflow: Start → Complete → Ready
+                    // MECHANIC WORKFLOW: Start → Complete → Ready
                     if (isAssignedToMe || isAdmin) {
                         if (m.status === 'Assigned') {
                             actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'In Progress')" class="action-btn btn-start"><i class="fas fa-play"></i> Start</button>`;
@@ -724,12 +718,19 @@
                         actionButtons += `<button onclick="deleteMaintenance('${m.id}')" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
                     }
                     
+                    if (!actionButtons) {
+                        actionButtons = '<span style="color:var(--gray);font-size:0.7rem;">No action</span>';
+                    }
+                    
                     const statusClass = m.status === 'Ready' ? 'status-ready' : 
                                       m.status === 'Completed' ? 'status-completed' :
                                       m.status === 'In Progress' ? 'status-inprogress' :
                                       m.status === 'Assigned' ? 'status-assigned' : 'status-pending';
                     
                     // Timeline display
+                    const steps = ['Pending', 'Assigned', 'In Progress', 'Completed', 'Ready'];
+                    const currentStep = steps.indexOf(m.status);
+                    
                     let timelineHtml = `<div class="status-timeline">`;
                     steps.forEach((step, index) => {
                         const isActive = index <= currentStep;
@@ -741,13 +742,15 @@
                     });
                     timelineHtml += `</div>`;
                     
-                    return `<tr>
+                    const isMyJob = isAssignedToMe ? '👤 ' : '';
+                    
+                    return `<tr class="${isAssignedToMe ? 'mechanic-only' : ''}">
                         <td><strong>${vehicle?.reg || 'Vehicle Deleted'}</strong></td>
                         <td>${m.description || '-'}</td>
-                        <td>${mechanic?.name || 'Unassigned'} ${isAssignedToMe ? '👤' : ''}</td>
+                        <td>${mechanic?.name || 'Unassigned'} ${isAssignedToMe ? '⭐' : ''}</td>
                         <td><span class="status-badge ${statusClass}">${m.status || 'Pending'}</span></td>
                         <td>${timelineHtml}</td>
-                        <td>${actionButtons || '-'}</td>
+                        <td>${actionButtons}</td>
                     </tr>`;
                 }).join('')}</tbody>
             </table></div>
