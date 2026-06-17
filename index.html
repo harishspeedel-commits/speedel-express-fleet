@@ -103,7 +103,7 @@
         .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--dark); }
         input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; background: var(--white); color: var(--dark); }
         input:focus, select:focus { outline: none; border-color: var(--primary); }
-        button { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
         button:hover { background: var(--primary-dark); transform: translateY(-1px); }
         .table-container { overflow-x: auto; max-height: 500px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -149,6 +149,7 @@
         .role-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: var(--primary); color: white; }
         .incentive-box { background: var(--success); color: white; padding: 5px 10px; border-radius: 5px; font-weight: 700; }
         .sunday-badge { background: var(--danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; }
+        .filter-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     </style>
 </head>
 <body>
@@ -179,11 +180,10 @@
     let companyLogo = localStorage.getItem('companyLogo') || '';
     let isDataLoaded = false;
 
-    // Incentive configuration
     const INCENTIVE_CONFIG = {
-        baseTrips: 6,           // 6 trips = no incentive
-        bonusPerTrip: 500,      // ₹500 per extra trip
-        sundayExtraSalary: true // Sunday = 1 day extra salary
+        baseTrips: 6,
+        bonusPerTrip: 500,
+        sundayExtraSalary: true
     };
 
     const MODULES = {
@@ -239,7 +239,6 @@
     //  INCENTIVE CALCULATION ENGINE
     // ============================================================
     function calculateDriverIncentives(driverId, month, year) {
-        // Get all trips for this driver in the given month
         const driverTrips = assignments.filter(a => {
             if (a.driverId !== driverId) return false;
             if (!a.date) return false;
@@ -247,12 +246,10 @@
             return d.getMonth() === month && d.getFullYear() === year && a.status === 'Closed';
         });
 
-        // Group trips by week (Monday to Sunday)
         const weeks = {};
         driverTrips.forEach(trip => {
             const date = new Date(trip.date);
-            const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ...
-            // Get Monday of the week
+            const dayOfWeek = date.getDay();
             const monday = new Date(date);
             monday.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
             const weekKey = monday.toISOString().split('T')[0];
@@ -266,27 +263,21 @@
             }
         });
 
-        // Calculate incentives per week
         let totalIncentive = 0;
         let sundayCount = 0;
         let weeklyBreakdown = [];
 
         Object.keys(weeks).forEach(weekKey => {
             const week = weeks[weekKey];
-            const totalTrips = week.trips.length + week.sundayTrips.length;
+            const monToSatTrips = week.trips.length;
             const sundayTrips = week.sundayTrips.length;
             
-            // Monday to Saturday trips (excluding Sunday)
-            const monToSatTrips = week.trips.length;
-            
-            // Incentive: Beyond 6 trips, ₹500 per extra trip (Monday to Saturday only)
             let weekIncentive = 0;
             if (monToSatTrips > INCENTIVE_CONFIG.baseTrips) {
                 const extraTrips = monToSatTrips - INCENTIVE_CONFIG.baseTrips;
                 weekIncentive = extraTrips * INCENTIVE_CONFIG.bonusPerTrip;
             }
             
-            // Sunday: 1 day extra salary (handled separately in payroll)
             if (sundayTrips > 0) {
                 sundayCount += sundayTrips;
             }
@@ -316,7 +307,6 @@
         const daysInMonth = getDaysInMonth(month, year);
         const perDaySalary = basicSalary / daysInMonth;
         
-        // Get attendance for this driver
         const driverAttendance = attendance.filter(a => {
             if (a.driverId !== driverId) return false;
             if (!a.date) return false;
@@ -328,18 +318,11 @@
         const absentDays = driverAttendance.filter(a => a.status === 'Absent').length;
         const leaveDays = driverAttendance.filter(a => a.status === 'Leave').length;
         
-        // Calculate incentives
         const incentiveData = calculateDriverIncentives(driverId, month, year);
         const tripIncentive = incentiveData.totalIncentive;
         const sundayCount = incentiveData.sundayCount;
-        
-        // Sunday extra pay: 1 day salary per Sunday worked
         const sundayExtra = sundayCount * perDaySalary;
-        
-        // Basic salary for present days
         const salaryForPresent = presentDays * perDaySalary;
-        
-        // Total earnings
         const totalEarnings = salaryForPresent + tripIncentive + sundayExtra;
         
         return {
@@ -353,7 +336,8 @@
             sundayExtra: sundayExtra,
             totalEarnings: totalEarnings,
             daysInMonth: daysInMonth,
-            incentiveBreakdown: incentiveData.weeklyBreakdown
+            incentiveBreakdown: incentiveData.weeklyBreakdown,
+            totalTrips: incentiveData.totalTrips
         };
     }
 
@@ -565,13 +549,9 @@
         `;
     }
 
-    // ============================================================
-    //  PAYROLL & INCENTIVES PAGE - ENHANCED WITH CALCULATIONS
-    // ============================================================
     function renderPayrollPage() {
         const container = document.getElementById('payrollContent');
         if (!container || (!hasPermission('payroll') && !canEdit())) return;
-        
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -586,7 +566,7 @@
                         <p>📌 Monday-Saturday: First ${INCENTIVE_CONFIG.baseTrips} trips = ₹0 incentive</p>
                         <p>💰 Beyond ${INCENTIVE_CONFIG.baseTrips} trips: ₹${INCENTIVE_CONFIG.bonusPerTrip} per extra trip</p>
                         <p>📅 Sunday: 1 day extra salary per Sunday worked</p>
-                        <p>📆 Salary calculated based on actual days in month (${getDaysInMonth(currentMonth, currentYear)} days this month)</p>
+                        <p>📆 Salary calculated based on actual days in month</p>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -623,7 +603,7 @@
     }
 
     // ============================================================
-    //  PAYROLL CALCULATION ENGINE
+    //  PAYROLL CALCULATION
     // ============================================================
     window.calculateAndGeneratePayroll = async () => {
         const driverId = document.getElementById('payrollDriverId')?.value;
@@ -637,7 +617,6 @@
         const basicSalary = driver.basicSalary || 15000;
         const result = calculateSalary(driverId, month - 1, year, basicSalary);
         
-        // Save payroll
         const payrollData = {
             driverId: driverId,
             month: monthStr,
@@ -650,11 +629,11 @@
             sundayCount: result.sundayCount,
             sundayExtra: result.sundayExtra,
             totalEarnings: result.totalEarnings,
+            totalTrips: result.totalTrips,
             incentiveBreakdown: JSON.stringify(result.incentiveBreakdown),
             generatedAt: new Date().toISOString()
         };
         
-        // Check if payroll already exists for this driver/month
         const existing = payroll.find(p => p.driverId === driverId && p.month === monthStr);
         if (existing) {
             if (!confirm("Payroll already exists for this driver/month. Override?")) return;
@@ -669,8 +648,8 @@
                 if (idx >= 0) payroll[idx] = { id, ...payrollData };
             }
             renderAllPages();
-            notify(`✅ Payroll generated for ${driver.name}! Total: ₹${result.totalEarnings.toFixed(2)}`);
             loadPayrollRecords();
+            notify(`✅ Payroll generated! Total: ₹${result.totalEarnings.toFixed(2)}`);
         }
     };
 
@@ -698,6 +677,7 @@
                 sundayCount: result.sundayCount,
                 sundayExtra: result.sundayExtra,
                 totalEarnings: result.totalEarnings,
+                totalTrips: result.totalTrips,
                 incentiveBreakdown: JSON.stringify(result.incentiveBreakdown),
                 generatedAt: new Date().toISOString()
             };
@@ -761,7 +741,7 @@
                 <h3>📊 Incentive Report for ${driver.name}</h3>
                 <div class="report-summary">
                     <div class="report-summary-item">Month: <span>${monthStr}</span></div>
-                    <div class="report-summary-item">Total Trips: <span>${result.tripIncentive > 0 ? result.totalTrips || 0 : 0}</span></div>
+                    <div class="report-summary-item">Total Trips: <span>${result.totalTrips || 0}</span></div>
                     <div class="report-summary-item">Trip Incentive: <span style="color:var(--success);font-size:1.2rem">₹${result.tripIncentive}</span></div>
                     <div class="report-summary-item">Sunday Worked: <span>${result.sundayCount} days</span></div>
                     <div class="report-summary-item">Sunday Extra: <span>₹${result.sundayExtra.toFixed(2)}</span></div>
@@ -894,26 +874,6 @@
         `;
     }
 
-    function renderReportsPage() {
-        const container = document.getElementById('reportsContent');
-        if (!container || (!hasPermission('reports') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="page-header"><h1>📊 Reports</h1></div>
-            <div class="report-tabs">
-                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
-                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
-                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
-                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
-                <button class="report-tab-btn" onclick="switchReportTab('incentives')">⭐ Incentives</button>
-            </div>
-            <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div id="vehiclesReportTable"><div class="table-container"><table><thead><tr><th>Reg</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="driversReportPanel" class="report-panel"><div class="card"><div id="driversReportTable"><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th></tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="tripsReportPanel" class="report-panel"><div class="card"><div id="tripsReportTable"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date} ${new Date(a.date).getDay() === 0 ? '🌞' : ''}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="payrollReportPanel" class="report-panel"><div class="card"><div id="payrollReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Incentive</th><th>Sunday Extra</th><th>Total</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basicSalary}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>₹${p.sundayExtra || 0}</td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody></table></div></div></div></div>
-            <div id="incentivesReportPanel" class="report-panel"><div class="card"><div id="incentivesReportTable"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Trips</th><th>Incentive</th><th>Sunday Days</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>${p.totalTrips || 0}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>${p.sundayCount || 0}</td></tr>`).join('')}</tbody></table></div></div></div></div>
-        `;
-    }
-
     function renderAuditPage() {
         const container = document.getElementById('auditContent');
         if (!container || (!hasPermission('audit') && !canEdit())) return;
@@ -922,26 +882,638 @@
         `;
     }
 
-    function renderAllPages() {
-        renderDashboardPage();
-        renderVehiclesPage();
-        renderDriversPage();
-        renderAssignmentsPage();
-        renderMaintenancePage();
-        renderFuelPage();
-        renderExpensesPage();
-        renderInsurancePage();
-        renderDocumentsPage();
-        renderAttendancePage();
-        renderPayrollPage();
-        renderIncentivesPage();
-        renderSupervisorsPage();
-        renderContractsPage();
-        renderReportsPage();
-        renderAuditPage();
-        renderLogo();
-        buildNavigation();
+    // ============================================================
+    //  REPORTS PAGE WITH FULL EXPORT FUNCTIONALITY
+    // ============================================================
+    function renderReportsPage() {
+        const container = document.getElementById('reportsContent');
+        if (!container || (!hasPermission('reports') && !canEdit())) return;
+        
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+        
+        container.innerHTML = `
+            <div class="page-header"><h1>📊 Complete Reports</h1><p>All data with Excel & PDF export</p></div>
+            <div class="report-tabs">
+                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
+                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
+                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
+                <button class="report-tab-btn" onclick="switchReportTab('maintenance')">🔧 Maintenance</button>
+                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
+                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
+                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
+                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
+                <button class="report-tab-btn" onclick="switchReportTab('incentives')">⭐ Incentives</button>
+                <button class="report-tab-btn" onclick="switchReportTab('documents')">📁 Documents</button>
+            </div>
+            
+            <div id="vehiclesReportPanel" class="report-panel active">${getVehiclesReportHTML()}</div>
+            <div id="driversReportPanel" class="report-panel">${getDriversReportHTML()}</div>
+            <div id="tripsReportPanel" class="report-panel">${getTripsReportHTML()}</div>
+            <div id="maintenanceReportPanel" class="report-panel">${getMaintenanceReportHTML()}</div>
+            <div id="fuelReportPanel" class="report-panel">${getFuelReportHTML()}</div>
+            <div id="expensesReportPanel" class="report-panel">${getExpensesReportHTML()}</div>
+            <div id="attendanceReportPanel" class="report-panel">${getAttendanceReportHTML()}</div>
+            <div id="payrollReportPanel" class="report-panel">${getPayrollReportHTML(monthStr)}</div>
+            <div id="incentivesReportPanel" class="report-panel">${getIncentivesReportHTML(monthStr)}</div>
+            <div id="documentsReportPanel" class="report-panel">${getDocumentsReportHTML()}</div>
+        `;
+        
+        // Load all report data
+        loadVehiclesReport();
+        loadDriversReport();
+        loadTripsReport();
+        loadMaintenanceReport();
+        loadFuelReport();
+        loadExpensesReport();
+        loadAttendanceReport();
+        loadPayrollReport();
+        loadIncentivesReport();
+        loadDocumentsReport();
     }
+
+    // ============================================================
+    //  REPORT HTML GENERATORS
+    // ============================================================
+    function getVehiclesReportHTML() {
+        return `<div class="card"><div class="card-title">🚛 All Vehicles</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Contract</label><select id="vFilterContract" onchange="loadVehiclesReport()"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Status</label><select id="vFilterStatus" onchange="loadVehiclesReport()"><option value="">All</option><option value="Active">Active</option><option value="Maintenance">Maintenance</option><option value="Inactive">Inactive</option></select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadVehiclesReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportVehiclesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportVehiclesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="vehiclesReportTable"></div>
+        </div>`;
+    }
+
+    function getDriversReportHTML() {
+        return `<div class="card"><div class="card-title">👤 All Drivers</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Contract</label><select id="dFilterContract" onchange="loadDriversReport()"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Status</label><select id="dFilterStatus" onchange="loadDriversReport()"><option value="">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="On Leave">On Leave</option></select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadDriversReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportDriversExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportDriversPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="driversReportTable"></div>
+        </div>`;
+    }
+
+    function getTripsReportHTML() {
+        return `<div class="card"><div class="card-title">📅 All Trips</div>
+            <div class="filter-row">
+                <div class="form-group"><label>From</label><input type="date" id="tFilterFrom"></div>
+                <div class="form-group"><label>To</label><input type="date" id="tFilterTo"></div>
+                <div class="form-group"><label>Contract</label><select id="tFilterContract"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadTripsReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportTripsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportTripsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="tripsReportTable"></div>
+        </div>`;
+    }
+
+    function getMaintenanceReportHTML() {
+        return `<div class="card"><div class="card-title">🔧 Maintenance Records</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Status</label><select id="mFilterStatus" onchange="loadMaintenanceReport()"><option value="">All</option><option value="Pending">Pending</option><option value="Assigned">Assigned</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option></select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadMaintenanceReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportMaintenanceExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportMaintenancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="maintenanceReportTable"></div>
+        </div>`;
+    }
+
+    function getFuelReportHTML() {
+        return `<div class="card"><div class="card-title">⛽ Fuel Records</div>
+            <div class="filter-row">
+                <div class="form-group"><label>From</label><input type="date" id="fFilterFrom"></div>
+                <div class="form-group"><label>To</label><input type="date" id="fFilterTo"></div>
+                <div class="form-group"><label>Vehicle</label><select id="fFilterVehicle"><option value="">All</option>${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadFuelReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportFuelExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportFuelPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="fuelReportTable"></div>
+        </div>`;
+    }
+
+    function getExpensesReportHTML() {
+        return `<div class="card"><div class="card-title">💰 Expenses</div>
+            <div class="filter-row">
+                <div class="form-group"><label>From</label><input type="date" id="eFilterFrom"></div>
+                <div class="form-group"><label>To</label><input type="date" id="eFilterTo"></div>
+                <div class="form-group"><label>Type</label><select id="eFilterType"><option value="">All</option><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Other</option></select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadExpensesReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportExpensesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportExpensesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="expensesReportTable"></div>
+        </div>`;
+    }
+
+    function getAttendanceReportHTML() {
+        return `<div class="card"><div class="card-title">📋 Attendance</div>
+            <div class="filter-row">
+                <div class="form-group"><label>From</label><input type="date" id="aFilterFrom"></div>
+                <div class="form-group"><label>To</label><input type="date" id="aFilterTo"></div>
+                <div class="form-group"><label>Driver</label><select id="aFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadAttendanceReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportAttendanceExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportAttendancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="attendanceReportTable"></div>
+        </div>`;
+    }
+
+    function getPayrollReportHTML(monthStr) {
+        return `<div class="card"><div class="card-title">💳 Payroll</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Month</label><input type="month" id="pFilterMonth" value="${monthStr}"></div>
+                <div class="form-group"><label>Driver</label><select id="pFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadPayrollReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportPayrollExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportPayrollPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="payrollReportTable"></div>
+        </div>`;
+    }
+
+    function getIncentivesReportHTML(monthStr) {
+        return `<div class="card"><div class="card-title">⭐ Incentives</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Month</label><input type="month" id="iFilterMonth" value="${monthStr}"></div>
+                <div class="form-group"><label>Driver</label><select id="iFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadIncentivesReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportIncentivesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportIncentivesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="incentivesReportTable"></div>
+        </div>`;
+    }
+
+    function getDocumentsReportHTML() {
+        return `<div class="card"><div class="card-title">📁 Documents</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Type</label><select id="docFilterType" onchange="loadDocumentsReport()"><option value="">All</option><option>RC</option><option>Insurance</option><option>License</option><option>Permit</option><option>Other</option></select></div>
+                <div class="filter-buttons">
+                    <button onclick="loadDocumentsReport()"><i class="fas fa-filter"></i> Apply</button>
+                    <button onclick="exportDocumentsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportDocumentsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div id="documentsReportTable"></div>
+        </div>`;
+    }
+
+    // ============================================================
+    //  REPORT LOAD FUNCTIONS
+    // ============================================================
+    function loadVehiclesReport() {
+        const contractId = document.getElementById('vFilterContract')?.value;
+        const status = document.getElementById('vFilterStatus')?.value;
+        let data = vehicles;
+        if (contractId) data = data.filter(v => v.contractId === contractId);
+        if (status) data = data.filter(v => v.status === status);
+        
+        const table = document.getElementById('vehiclesReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} of ${vehicles.length} vehicles</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Reg Number</th><th>Type</th><th>Model</th><th>Contract</th><th>Status</th><th>Insurance Expiry</th></tr></thead>
+                <tbody>${data.map(v => `<tr><td>${v.reg || '-'}</td><td>${v.type || '-'}</td><td>${v.model || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status || 'Unknown'}</span></td><td>${v.insuranceExpiry || '-'}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._vehiclesReportData = data;
+    }
+
+    function loadDriversReport() {
+        const contractId = document.getElementById('dFilterContract')?.value;
+        const status = document.getElementById('dFilterStatus')?.value;
+        let data = drivers;
+        if (contractId) data = data.filter(d => d.contractId === contractId);
+        if (status) data = data.filter(d => d.status === status);
+        
+        const table = document.getElementById('driversReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} of ${drivers.length} drivers</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Name</th><th>License</th><th>Mobile</th><th>Contract</th><th>Status</th><th>Basic Salary</th></tr></thead>
+                <tbody>${data.map(d => `<tr><td>${d.name || '-'}</td><td>${d.license || '-'}</td><td>${d.mobile || '-'}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status || 'Unknown'}</span></td><td>₹${d.basicSalary || 15000}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._driversReportData = data;
+    }
+
+    function loadTripsReport() {
+        const from = document.getElementById('tFilterFrom')?.value;
+        const to = document.getElementById('tFilterTo')?.value;
+        const contractId = document.getElementById('tFilterContract')?.value;
+        let data = assignments;
+        if (from) data = data.filter(a => a.date >= from);
+        if (to) data = data.filter(a => a.date <= to);
+        if (contractId) data = data.filter(a => a.contractId === contractId);
+        
+        const table = document.getElementById('tripsReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} of ${assignments.length} trips</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Day</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+                <tbody>${data.map(a => { const isSunday = a.date ? new Date(a.date).getDay() === 0 : false; return `<tr><td>${a.date || '-'}</td><td>${isSunday ? '🌞 Sunday' : 'Weekday'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td>${contracts.find(c=>c.id===a.contractId)?.name || '-'}</td><td>${a.startLoc || '-'}</td><td>${a.endLoc || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`; }).join('')}</tbody>
+            </table></div>
+        `;
+        window._tripsReportData = data;
+    }
+
+    function loadMaintenanceReport() {
+        const status = document.getElementById('mFilterStatus')?.value;
+        let data = maintenance;
+        if (status) data = data.filter(m => m.status === status);
+        
+        const table = document.getElementById('maintenanceReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} of ${maintenance.length} records</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Vehicle</th><th>Description</th><th>Mechanic</th><th>Status</th><th>Cost</th><th>Date</th></tr></thead>
+                <tbody>${data.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${m.mechanic || '-'}</td><td><span class="status-badge ${m.status==='Completed'?'status-completed':'status-pending'}">${m.status || 'Pending'}</span></td><td>₹${m.cost || 0}</td><td>${m.date || '-'}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._maintenanceReportData = data;
+    }
+
+    function loadFuelReport() {
+        const from = document.getElementById('fFilterFrom')?.value;
+        const to = document.getElementById('fFilterTo')?.value;
+        const vehicleId = document.getElementById('fFilterVehicle')?.value;
+        let data = fuelRecords;
+        if (from) data = data.filter(f => f.date >= from);
+        if (to) data = data.filter(f => f.date <= to);
+        if (vehicleId) data = data.filter(f => f.vehicleId === vehicleId);
+        
+        const totalCost = data.reduce((s, f) => s + (f.cost || 0), 0);
+        const totalLiters = data.reduce((s, f) => s + (f.liters || 0), 0);
+        
+        const table = document.getElementById('fuelReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="report-summary">
+                <div class="report-summary-item">Records: <span>${data.length}</span></div>
+                <div class="report-summary-item">Total Liters: <span>${totalLiters.toFixed(2)}</span></div>
+                <div class="report-summary-item">Total Cost: <span>₹${totalCost.toFixed(2)}</span></div>
+            </div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost (₹)</th></tr></thead>
+                <tbody>${data.map(f => `<tr><td>${f.date || '-'}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters || 0}</td><td>₹${f.cost || 0}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._fuelReportData = data;
+    }
+
+    function loadExpensesReport() {
+        const from = document.getElementById('eFilterFrom')?.value;
+        const to = document.getElementById('eFilterTo')?.value;
+        const type = document.getElementById('eFilterType')?.value;
+        let data = expenses;
+        if (from) data = data.filter(e => e.date >= from);
+        if (to) data = data.filter(e => e.date <= to);
+        if (type) data = data.filter(e => e.type === type);
+        
+        const totalAmount = data.reduce((s, e) => s + (e.amount || 0), 0);
+        
+        const table = document.getElementById('expensesReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="report-summary">
+                <div class="report-summary-item">Records: <span>${data.length}</span></div>
+                <div class="report-summary-item">Total Amount: <span>₹${totalAmount.toFixed(2)}</span></div>
+            </div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount (₹)</th><th>Description</th></tr></thead>
+                <tbody>${data.map(e => `<tr><td>${e.date || '-'}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type || '-'}</td><td>₹${e.amount || 0}</td><td>${e.description || '-'}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._expensesReportData = data;
+    }
+
+    function loadAttendanceReport() {
+        const from = document.getElementById('aFilterFrom')?.value;
+        const to = document.getElementById('aFilterTo')?.value;
+        const driverId = document.getElementById('aFilterDriver')?.value;
+        let data = attendance;
+        if (from) data = data.filter(a => a.date >= from);
+        if (to) data = data.filter(a => a.date <= to);
+        if (driverId) data = data.filter(a => a.driverId === driverId);
+        
+        const present = data.filter(a => a.status === 'Present').length;
+        const absent = data.filter(a => a.status === 'Absent').length;
+        const leave = data.filter(a => a.status === 'Leave').length;
+        
+        const table = document.getElementById('attendanceReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="report-summary">
+                <div class="report-summary-item">Total: <span>${data.length}</span></div>
+                <div class="report-summary-item">Present: <span>${present}</span></div>
+                <div class="report-summary-item">Absent: <span>${absent}</span></div>
+                <div class="report-summary-item">Leave: <span>${leave}</span></div>
+            </div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Remarks</th></tr></thead>
+                <tbody>${data.map(a => `<tr><td>${a.date || '-'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status || '-'}</span></td><td>${a.remarks || '-'}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._attendanceReportData = data;
+    }
+
+    function loadPayrollReport() {
+        const month = document.getElementById('pFilterMonth')?.value;
+        const driverId = document.getElementById('pFilterDriver')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        if (driverId) data = data.filter(p => p.driverId === driverId);
+        
+        const totalBasic = data.reduce((s, p) => s + (p.basicSalary || 0), 0);
+        const totalIncentive = data.reduce((s, p) => s + (p.tripIncentive || 0), 0);
+        const totalEarnings = data.reduce((s, p) => s + (p.totalEarnings || 0), 0);
+        
+        const table = document.getElementById('payrollReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="report-summary">
+                <div class="report-summary-item">Records: <span>${data.length}</span></div>
+                <div class="report-summary-item">Total Basic: <span>₹${totalBasic.toFixed(2)}</span></div>
+                <div class="report-summary-item">Total Incentive: <span>₹${totalIncentive.toFixed(2)}</span></div>
+                <div class="report-summary-item">Total Earnings: <span>₹${totalEarnings.toFixed(2)}</span></div>
+            </div>
+            <div class="table-container"><table>
+                <thead><tr><th>Driver</th><th>Month</th><th>Basic (₹)</th><th>Present Days</th><th>Incentive (₹)</th><th>Sunday Extra</th><th>Total (₹)</th></tr></thead>
+                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month || '-'}</td><td>₹${p.basicSalary || 0}</td><td>${p.presentDays || 0}/${p.daysInMonth || 30}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>₹${p.sundayExtra || 0}</td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._payrollReportData = data;
+    }
+
+    function loadIncentivesReport() {
+        const month = document.getElementById('iFilterMonth')?.value;
+        const driverId = document.getElementById('iFilterDriver')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        if (driverId) data = data.filter(p => p.driverId === driverId);
+        
+        const totalIncentive = data.reduce((s, p) => s + (p.tripIncentive || 0), 0);
+        const totalSunday = data.reduce((s, p) => s + (p.sundayCount || 0), 0);
+        
+        const table = document.getElementById('incentivesReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="report-summary">
+                <div class="report-summary-item">Records: <span>${data.length}</span></div>
+                <div class="report-summary-item">Total Incentive: <span>₹${totalIncentive.toFixed(2)}</span></div>
+                <div class="report-summary-item">Total Sunday Days: <span>${totalSunday}</span></div>
+            </div>
+            <div class="table-container"><table>
+                <thead><tr><th>Driver</th><th>Month</th><th>Total Trips</th><th>Incentive (₹)</th><th>Sunday Days</th><th>Sunday Extra</th></tr></thead>
+                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month || '-'}</td><td>${p.totalTrips || 0}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>${p.sundayCount || 0}</td><td>₹${p.sundayExtra || 0}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._incentivesReportData = data;
+    }
+
+    function loadDocumentsReport() {
+        const type = document.getElementById('docFilterType')?.value;
+        let data = documents;
+        if (type) data = data.filter(d => d.type === type);
+        
+        const table = document.getElementById('documentsReportTable');
+        if (!table) return;
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} of ${documents.length} documents</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Remarks</th></tr></thead>
+                <tbody>${data.map(d => `<tr><td>${d.date || '-'}</td><td>${d.type || '-'}</td><td>${d.associatedName || d.associatedId || '-'}</td><td>${d.remarks || '-'}</td></tr>`).join('')}</tbody>
+            </table></div>
+        `;
+        window._documentsReportData = data;
+    }
+
+    // ============================================================
+    //  EXPORT FUNCTIONS - EXCEL & PDF
+    // ============================================================
+    function exportToExcel(data, columns, filename, sheetName) {
+        if (!data || data.length === 0) { notify("⚠️ No data to export"); return; }
+        const wsData = data.map(item => {
+            const row = {};
+            columns.forEach(col => {
+                row[col.label] = col.value(item);
+            });
+            return row;
+        });
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, filename + '.xlsx');
+        notify('✅ ' + filename + ' exported successfully!');
+    }
+
+    function exportToPDF(elementId, filename) {
+        const el = document.getElementById(elementId);
+        if (!el) { notify("⚠️ No data to export"); return; }
+        if (el.innerHTML.trim() === '' || el.innerHTML.includes('No records')) {
+            notify("⚠️ No data to export");
+            return;
+        }
+        html2pdf().from(el).set({ margin: 0.5, filename: filename + '.pdf' }).save();
+        notify('✅ ' + filename + ' PDF exported!');
+    }
+
+    // Vehicle Exports
+    window.exportVehiclesExcel = () => {
+        const data = window._vehiclesReportData || vehicles;
+        const cols = [
+            { label: 'Reg Number', value: v => v.reg || '-' },
+            { label: 'Type', value: v => v.type || '-' },
+            { label: 'Model', value: v => v.model || '-' },
+            { label: 'Contract', value: v => contracts.find(c=>c.id===v.contractId)?.name || '-' },
+            { label: 'Status', value: v => v.status || '-' },
+            { label: 'Insurance Expiry', value: v => v.insuranceExpiry || '-' }
+        ];
+        exportToExcel(data, cols, 'Vehicles_Report', 'Vehicles');
+    };
+    window.exportVehiclesPDF = () => exportToPDF('vehiclesReportTable', 'Vehicles_Report');
+
+    // Driver Exports
+    window.exportDriversExcel = () => {
+        const data = window._driversReportData || drivers;
+        const cols = [
+            { label: 'Name', value: d => d.name || '-' },
+            { label: 'License', value: d => d.license || '-' },
+            { label: 'Mobile', value: d => d.mobile || '-' },
+            { label: 'Contract', value: d => contracts.find(c=>c.id===d.contractId)?.name || '-' },
+            { label: 'Status', value: d => d.status || '-' },
+            { label: 'Basic Salary', value: d => d.basicSalary || 15000 }
+        ];
+        exportToExcel(data, cols, 'Drivers_Report', 'Drivers');
+    };
+    window.exportDriversPDF = () => exportToPDF('driversReportTable', 'Drivers_Report');
+
+    // Trips Exports
+    window.exportTripsExcel = () => {
+        const data = window._tripsReportData || assignments;
+        const cols = [
+            { label: 'Date', value: a => a.date || '-' },
+            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
+            { label: 'Vehicle', value: a => vehicles.find(v=>v.id===a.vehicleId)?.reg || '-' },
+            { label: 'Contract', value: a => contracts.find(c=>c.id===a.contractId)?.name || '-' },
+            { label: 'Start Location', value: a => a.startLoc || '-' },
+            { label: 'End Location', value: a => a.endLoc || '-' },
+            { label: 'Status', value: a => a.status || 'Open' }
+        ];
+        exportToExcel(data, cols, 'Trips_Report', 'Trips');
+    };
+    window.exportTripsPDF = () => exportToPDF('tripsReportTable', 'Trips_Report');
+
+    // Maintenance Exports
+    window.exportMaintenanceExcel = () => {
+        const data = window._maintenanceReportData || maintenance;
+        const cols = [
+            { label: 'Vehicle', value: m => vehicles.find(v=>v.id===m.vehicleId)?.reg || '-' },
+            { label: 'Description', value: m => m.description || '-' },
+            { label: 'Mechanic', value: m => m.mechanic || '-' },
+            { label: 'Status', value: m => m.status || 'Pending' },
+            { label: 'Cost', value: m => m.cost || 0 },
+            { label: 'Date', value: m => m.date || '-' }
+        ];
+        exportToExcel(data, cols, 'Maintenance_Report', 'Maintenance');
+    };
+    window.exportMaintenancePDF = () => exportToPDF('maintenanceReportTable', 'Maintenance_Report');
+
+    // Fuel Exports
+    window.exportFuelExcel = () => {
+        const data = window._fuelReportData || fuelRecords;
+        const cols = [
+            { label: 'Date', value: f => f.date || '-' },
+            { label: 'Vehicle', value: f => vehicles.find(v=>v.id===f.vehicleId)?.reg || '-' },
+            { label: 'Liters', value: f => f.liters || 0 },
+            { label: 'Cost', value: f => f.cost || 0 }
+        ];
+        exportToExcel(data, cols, 'Fuel_Report', 'Fuel');
+    };
+    window.exportFuelPDF = () => exportToPDF('fuelReportTable', 'Fuel_Report');
+
+    // Expenses Exports
+    window.exportExpensesExcel = () => {
+        const data = window._expensesReportData || expenses;
+        const cols = [
+            { label: 'Date', value: e => e.date || '-' },
+            { label: 'Vehicle', value: e => vehicles.find(v=>v.id===e.vehicleId)?.reg || '-' },
+            { label: 'Type', value: e => e.type || '-' },
+            { label: 'Amount', value: e => e.amount || 0 },
+            { label: 'Description', value: e => e.description || '-' }
+        ];
+        exportToExcel(data, cols, 'Expenses_Report', 'Expenses');
+    };
+    window.exportExpensesPDF = () => exportToPDF('expensesReportTable', 'Expenses_Report');
+
+    // Attendance Exports
+    window.exportAttendanceExcel = () => {
+        const data = window._attendanceReportData || attendance;
+        const cols = [
+            { label: 'Date', value: a => a.date || '-' },
+            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
+            { label: 'Status', value: a => a.status || '-' },
+            { label: 'Remarks', value: a => a.remarks || '-' }
+        ];
+        exportToExcel(data, cols, 'Attendance_Report', 'Attendance');
+    };
+    window.exportAttendancePDF = () => exportToPDF('attendanceReportTable', 'Attendance_Report');
+
+    // Payroll Exports
+    window.exportPayrollExcel = () => {
+        const data = window._payrollReportData || payroll;
+        const cols = [
+            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
+            { label: 'Month', value: p => p.month || '-' },
+            { label: 'Basic Salary', value: p => p.basicSalary || 0 },
+            { label: 'Present Days', value: p => p.presentDays || 0 },
+            { label: 'Trip Incentive', value: p => p.tripIncentive || 0 },
+            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 },
+            { label: 'Total Earnings', value: p => (p.totalEarnings || 0).toFixed(2) }
+        ];
+        exportToExcel(data, cols, 'Payroll_Report', 'Payroll');
+    };
+    window.exportPayrollPDF = () => exportToPDF('payrollReportTable', 'Payroll_Report');
+
+    // Incentives Exports
+    window.exportIncentivesExcel = () => {
+        const data = window._incentivesReportData || payroll;
+        const cols = [
+            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
+            { label: 'Month', value: p => p.month || '-' },
+            { label: 'Total Trips', value: p => p.totalTrips || 0 },
+            { label: 'Incentive', value: p => p.tripIncentive || 0 },
+            { label: 'Sunday Days', value: p => p.sundayCount || 0 },
+            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 }
+        ];
+        exportToExcel(data, cols, 'Incentives_Report', 'Incentives');
+    };
+    window.exportIncentivesPDF = () => exportToPDF('incentivesReportTable', 'Incentives_Report');
+
+    // Documents Exports
+    window.exportDocumentsExcel = () => {
+        const data = window._documentsReportData || documents;
+        const cols = [
+            { label: 'Date', value: d => d.date || '-' },
+            { label: 'Type', value: d => d.type || '-' },
+            { label: 'Associated', value: d => d.associatedName || d.associatedId || '-' },
+            { label: 'Remarks', value: d => d.remarks || '-' }
+        ];
+        exportToExcel(data, cols, 'Documents_Report', 'Documents');
+    };
+    window.exportDocumentsPDF = () => exportToPDF('documentsReportTable', 'Documents_Report');
+
+    // Payroll page export
+    window.exportPayrollReport = () => {
+        const month = document.getElementById('payrollFilterMonth')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        const cols = [
+            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
+            { label: 'Month', value: p => p.month || '-' },
+            { label: 'Basic Salary', value: p => p.basicSalary || 0 },
+            { label: 'Present Days', value: p => p.presentDays || 0 },
+            { label: 'Trip Incentive', value: p => p.tripIncentive || 0 },
+            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 },
+            { label: 'Total Earnings', value: p => (p.totalEarnings || 0).toFixed(2) }
+        ];
+        exportToExcel(data, cols, `Payroll_${month || 'All'}`, 'Payroll');
+    };
 
     // ============================================================
     //  CRUD OPERATIONS
@@ -1069,7 +1641,8 @@
             date: document.getElementById('expenseDate')?.value,
             vehicleId: document.getElementById('expenseVehicleId')?.value,
             type: document.getElementById('expenseType')?.value,
-            amount: parseFloat(document.getElementById('expenseAmount')?.value)
+            amount: parseFloat(document.getElementById('expenseAmount')?.value),
+            description: document.getElementById('expenseDesc')?.value
         };
         if (!data.vehicleId || !data.amount) return notify("Select vehicle and amount");
         const id = await saveToFirestore('expenses', data);
@@ -1099,7 +1672,8 @@
                 type: document.getElementById('docType').value,
                 associatedId: document.getElementById('docAssociatedId').value,
                 associatedName: document.getElementById('docAssociatedId').selectedOptions[0]?.text,
-                dataUrl: e.target.result
+                dataUrl: e.target.result,
+                remarks: document.getElementById('docRemarks')?.value
             };
             const id = await saveToFirestore('documents', data);
             if (id) { documents.push({ id, ...data }); renderAllPages(); notify("Document uploaded"); }
@@ -1248,6 +1822,9 @@
         if (pageId === 'payrollPage') {
             loadPayrollRecords();
         }
+        if (pageId === 'reportsPage') {
+            renderReportsPage();
+        }
     };
 
     window.toggleTheme = () => {
@@ -1263,25 +1840,26 @@
         alert(`📄 Salary Slip\n━━━━━━━━━━━━━━━━━━━\nDriver: ${d?.name}\nMonth: ${p.month}\n━━━━━━━━━━━━━━━━━━━\nBasic Salary: ₹${p.basicSalary}\nPresent Days: ${p.presentDays || 0}/${p.daysInMonth || 30}\nTrip Incentive: ₹${p.tripIncentive || 0}\nSunday Extra: ₹${p.sundayExtra || 0}\n━━━━━━━━━━━━━━━━━━━\nTotal Earnings: ₹${net.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━`);
     };
 
-    window.exportPayrollReport = () => {
-        const month = document.getElementById('payrollFilterMonth')?.value;
-        let data = payroll;
-        if (month) data = data.filter(p => p.month === month);
-        const wsData = data.map(p => ({
-            Driver: drivers.find(d=>d.id===p.driverId)?.name || '-',
-            Month: p.month,
-            'Basic Salary': p.basicSalary,
-            'Present Days': p.presentDays || 0,
-            'Trip Incentive': p.tripIncentive || 0,
-            'Sunday Extra': p.sundayExtra || 0,
-            'Total Earnings': (p.totalEarnings || 0).toFixed(2)
-        }));
-        const ws = XLSX.utils.json_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Payroll");
-        XLSX.writeFile(wb, `Payroll_${month || 'All'}.xlsx`);
-        notify("✅ Payroll exported!");
-    };
+    function renderAllPages() {
+        renderDashboardPage();
+        renderVehiclesPage();
+        renderDriversPage();
+        renderAssignmentsPage();
+        renderMaintenancePage();
+        renderFuelPage();
+        renderExpensesPage();
+        renderInsurancePage();
+        renderDocumentsPage();
+        renderAttendancePage();
+        renderPayrollPage();
+        renderIncentivesPage();
+        renderSupervisorsPage();
+        renderContractsPage();
+        renderReportsPage();
+        renderAuditPage();
+        renderLogo();
+        buildNavigation();
+    }
 
     // ============================================================
     //  AUTH
