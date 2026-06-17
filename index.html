@@ -115,6 +115,8 @@
         .status-maintenance { background: var(--danger); color: white; }
         .status-pending { background: var(--warning); color: #333; }
         .status-completed { background: var(--success); color: white; }
+        .status-assigned { background: var(--info); color: white; }
+        .status-inprogress { background: var(--secondary); color: white; }
         .form-vertical { display: flex; flex-direction: column; }
         .form-actions { margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -150,6 +152,10 @@
         .incentive-box { background: var(--success); color: white; padding: 5px 10px; border-radius: 5px; font-weight: 700; }
         .sunday-badge { background: var(--danger); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; }
         .filter-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .mechanic-badge { background: var(--info); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; }
+        .maintenance-card { border-left: 4px solid var(--danger); }
+        .ready-btn { background: var(--success); }
+        .ready-btn:hover { background: #219a52; }
     </style>
 </head>
 <body>
@@ -167,6 +173,7 @@
     let drivers = [];
     let contracts = [];
     let supervisors = [];
+    let mechanics = [];
     let assignments = [];
     let fuelRecords = [];
     let expenses = [];
@@ -198,6 +205,7 @@
         documents: { label: 'Documents', icon: 'fa-folder-open' },
         contracts: { label: 'Contracts', icon: 'fa-file-signature' },
         supervisors: { label: 'Supervisors', icon: 'fa-users-cog' },
+        mechanics: { label: 'Mechanics', icon: 'fa-tools' },
         reports: { label: 'Reports', icon: 'fa-chart-line' },
         attendance: { label: 'Attendance', icon: 'fa-clock' },
         payroll: { label: 'Payroll', icon: 'fa-wallet' },
@@ -233,6 +241,18 @@
 
     function canEdit() { 
         return userRole === 'superadmin' || userRole === 'admin'; 
+    }
+
+    function isMechanic() {
+        return userRole === 'mechanic';
+    }
+
+    function canMarkReady() {
+        return userRole === 'superadmin' || userRole === 'admin' || userRole === 'mechanic';
+    }
+
+    function getAvailableVehicles() {
+        return vehicles.filter(v => v.status === 'Active');
     }
 
     // ============================================================
@@ -373,6 +393,9 @@
             snap = await getDocs(collection(db, 'supervisors'));
             supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             
+            snap = await getDocs(collection(db, 'mechanics'));
+            mechanics = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
             snap = await getDocs(collection(db, 'fuelRecords'));
             fuelRecords = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             
@@ -440,31 +463,58 @@
     // ============================================================
     function buildNavigation() {
         const isAdmin = canEdit();
-        const navItems = [
-            { id: 'dashboardPage', label: 'Dashboard', icon: 'fa-tachometer-alt', perm: 'dashboard' },
-            { id: 'vehiclesPage', label: 'Vehicles', icon: 'fa-truck', perm: 'vehicles' },
-            { id: 'driversPage', label: 'Drivers', icon: 'fa-id-card', perm: 'drivers' },
-            { id: 'assignmentsPage', label: 'Trips', icon: 'fa-calendar-check', perm: 'assignments' },
-            { id: 'maintenancePage', label: 'Maintenance', icon: 'fa-wrench', perm: 'maintenance' },
-            { id: 'fuelPage', label: 'Fuel', icon: 'fa-gas-pump', perm: 'fuel' },
-            { id: 'expensesPage', label: 'Expenses', icon: 'fa-money-bill-wave', perm: 'expenses' },
-            { id: 'insurancePage', label: 'Insurance', icon: 'fa-file-contract', perm: 'insurance' },
-            { id: 'documentsPage', label: 'Documents', icon: 'fa-folder-open', perm: 'documents' },
-            { id: 'attendancePage', label: 'Attendance', icon: 'fa-clock', perm: 'attendance' },
-            { id: 'payrollPage', label: 'Payroll', icon: 'fa-wallet', perm: 'payroll' },
-            { id: 'incentivesPage', label: 'Incentives', icon: 'fa-star', perm: 'incentives' },
-            { id: 'reportsPage', label: 'Reports', icon: 'fa-chart-line', perm: 'reports' },
-            { id: 'auditPage', label: 'Audit Logs', icon: 'fa-history', perm: 'audit' }
+        const isMech = isMechanic();
+        
+        let navItems = [
+            { id: 'dashboardPage', label: 'Dashboard', icon: 'fa-tachometer-alt', perm: 'dashboard' }
         ];
+        
+        // Show different menus based on role
+        if (isAdmin) {
+            navItems.push(
+                { id: 'vehiclesPage', label: 'Vehicles', icon: 'fa-truck', perm: 'vehicles' },
+                { id: 'driversPage', label: 'Drivers', icon: 'fa-id-card', perm: 'drivers' },
+                { id: 'assignmentsPage', label: 'Trips', icon: 'fa-calendar-check', perm: 'assignments' },
+                { id: 'maintenancePage', label: 'Maintenance', icon: 'fa-wrench', perm: 'maintenance' },
+                { id: 'fuelPage', label: 'Fuel', icon: 'fa-gas-pump', perm: 'fuel' },
+                { id: 'expensesPage', label: 'Expenses', icon: 'fa-money-bill-wave', perm: 'expenses' },
+                { id: 'insurancePage', label: 'Insurance', icon: 'fa-file-contract', perm: 'insurance' },
+                { id: 'documentsPage', label: 'Documents', icon: 'fa-folder-open', perm: 'documents' },
+                { id: 'attendancePage', label: 'Attendance', icon: 'fa-clock', perm: 'attendance' },
+                { id: 'payrollPage', label: 'Payroll', icon: 'fa-wallet', perm: 'payroll' },
+                { id: 'incentivesPage', label: 'Incentives', icon: 'fa-star', perm: 'incentives' },
+                { id: 'reportsPage', label: 'Reports', icon: 'fa-chart-line', perm: 'reports' },
+                { id: 'auditPage', label: 'Audit Logs', icon: 'fa-history', perm: 'audit' },
+                { id: 'contractsPage', label: 'Contracts', icon: 'fa-file-signature', perm: 'contracts' },
+                { id: 'supervisorsPage', label: 'Supervisors', icon: 'fa-users-cog', perm: 'supervisors' },
+                { id: 'mechanicsPage', label: 'Mechanics', icon: 'fa-tools', perm: 'mechanics' }
+            );
+        } else if (isMech) {
+            // Mechanics only see Maintenance module
+            navItems.push(
+                { id: 'maintenancePage', label: 'Maintenance Jobs', icon: 'fa-wrench', perm: 'maintenance' }
+            );
+        } else {
+            // Supervisors see limited modules
+            navItems.push(
+                { id: 'vehiclesPage', label: 'Vehicles', icon: 'fa-truck', perm: 'vehicles' },
+                { id: 'driversPage', label: 'Drivers', icon: 'fa-id-card', perm: 'drivers' },
+                { id: 'assignmentsPage', label: 'Trips', icon: 'fa-calendar-check', perm: 'assignments' },
+                { id: 'maintenancePage', label: 'Maintenance', icon: 'fa-wrench', perm: 'maintenance' },
+                { id: 'fuelPage', label: 'Fuel', icon: 'fa-gas-pump', perm: 'fuel' },
+                { id: 'expensesPage', label: 'Expenses', icon: 'fa-money-bill-wave', perm: 'expenses' },
+                { id: 'insurancePage', label: 'Insurance', icon: 'fa-file-contract', perm: 'insurance' },
+                { id: 'documentsPage', label: 'Documents', icon: 'fa-folder-open', perm: 'documents' },
+                { id: 'attendancePage', label: 'Attendance', icon: 'fa-clock', perm: 'attendance' },
+                { id: 'reportsPage', label: 'Reports', icon: 'fa-chart-line', perm: 'reports' }
+            );
+        }
+        
         let html = '';
         for (const item of navItems) {
-            if (hasPermission(item.perm) || isAdmin) {
+            if (hasPermission(item.perm) || isAdmin || isMech) {
                 html += `<button class="nav-link" onclick="showPage('${item.id}'); closeSidebar();"><i class="fas ${item.icon}"></i> ${item.label}</button>`;
             }
-        }
-        if (isAdmin) {
-            html += `<button class="nav-link" onclick="showPage('contractsPage'); closeSidebar();"><i class="fas fa-file-signature"></i> Contracts</button>`;
-            html += `<button class="nav-link" onclick="showPage('supervisorsPage'); closeSidebar();"><i class="fas fa-users-cog"></i> Supervisors</button>`;
         }
         document.getElementById('navLinksContainer').innerHTML = html;
     }
@@ -485,6 +535,9 @@
         if (!container) return;
         const totalFuel = fuelRecords.reduce((s, f) => s + (f.cost || 0), 0);
         const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+        const pendingMaintenance = maintenance.filter(m => m.status !== 'Completed' && m.status !== 'Ready').length;
+        const inProgressMaintenance = maintenance.filter(m => m.status === 'In Progress').length;
+        
         container.innerHTML = `
             <div class="page-header"><h1>📊 Dashboard</h1><p>Welcome ${currentUser?.email || 'User'} <span class="role-tag">${userRole || 'User'}</span></p></div>
             <div class="grid-3">
@@ -493,14 +546,14 @@
                 <div class="card"><h3>Trips Today</h3><p style="font-size:2rem">${assignments.filter(a=>a.date===new Date().toISOString().split('T')[0]).length}</p></div>
                 <div class="card"><h3>Fuel Cost</h3><p style="font-size:2rem">₹${totalFuel.toLocaleString()}</p></div>
                 <div class="card"><h3>Expenses</h3><p style="font-size:2rem">₹${totalExp.toLocaleString()}</p></div>
-                <div class="card"><h3>Incentives This Month</h3><p style="font-size:2rem">₹${incentives.reduce((s,i)=>s+(i.amount||0),0).toLocaleString()}</p></div>
+                <div class="card"><h3>Maintenance</h3><p style="font-size:2rem">${pendingMaintenance} Pending</p><p>In Progress: ${inProgressMaintenance}</p></div>
             </div>
         `;
     }
 
     function renderVehiclesPage() {
         const container = document.getElementById('vehiclesContent');
-        if (!container || (!hasPermission('vehicles') && !canEdit())) return;
+        if (!container || (!hasPermission('vehicles') && !canEdit() && !isMechanic())) return;
         const canEditFlag = canEdit();
         container.innerHTML = `
             <div class="card"><div class="card-title">➕ Add Vehicle</div><div class="form-vertical">
@@ -531,14 +584,19 @@
         `;
     }
 
+    // ============================================================
+    //  ASSIGNMENTS PAGE - ONLY ACTIVE VEHICLES SHOWN
+    // ============================================================
     function renderAssignmentsPage() {
         const container = document.getElementById('assignmentsContent');
         if (!container || (!hasPermission('assignments') && !canEdit())) return;
         const today = new Date().toISOString().split('T')[0];
+        const availableVehicles = getAvailableVehicles(); // Only Active vehicles
+        
         container.innerHTML = `
             <div class="card"><div class="card-title">📅 New Trip</div><div class="form-vertical">
                 <div class="form-group"><label>Driver</label><select id="assignDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Vehicle</label><select id="assignVehicleId">${vehicles.filter(v=>v.status==='Active').map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Vehicle</label><select id="assignVehicleId">${availableVehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Contract</label><select id="assignContractId">${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
                 <div class="form-group"><label>Date</label><input type="date" id="assignDate" value="${today}"></div>
                 <div class="form-group"><label>Start Location</label><input type="text" id="assignStartLoc" placeholder="From"></div>
@@ -546,6 +604,393 @@
                 <div class="form-actions"><button onclick="createAssignment()">Create Trip</button></div>
             </div></div>
             <div class="card"><div class="card-title">📋 Trips</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Route</th><th>Status</th><th>Actions</th></tr></thead><tbody>${assignments.map(a => { const d = drivers.find(dd=>dd.id===a.driverId); const v = vehicles.find(vv=>vv.id===a.vehicleId); const c = contracts.find(cc=>cc.id===a.contractId); const isSunday = a.date ? new Date(a.date).getDay() === 0 : false; return `<tr><td>${a.date} ${isSunday ? '<span class="sunday-badge">Sun</span>' : ''}</td><td>${d?.name || '?'}</td><td>${v?.reg || '?'}</td><td>${c?.name || '?'}</td><td>${a.startLoc || '-'} → ${a.endLoc || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td><td class="action-icons"><i class="fas fa-check" onclick="closeTrip('${a.id}')" title="Close Trip"></i><i class="fas fa-trash-alt" onclick="deleteAssignment('${a.id}')"></i></td></tr>`; }).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    // ============================================================
+    //  MAINTENANCE PAGE - COMPLETE MECHANIC WORKFLOW
+    // ============================================================
+    function renderMaintenancePage() {
+        const container = document.getElementById('maintenanceContent');
+        if (!container || (!hasPermission('maintenance') && !canEdit() && !isMechanic())) return;
+        
+        const isAdmin = canEdit();
+        const isMech = isMechanic();
+        const today = new Date().toISOString().split('T')[0];
+        
+        let html = '';
+        
+        // Admin/Supervisor can create maintenance requests
+        if (isAdmin || userRole === 'supervisor') {
+            html += `
+                <div class="card"><div class="card-title">🔧 Create Maintenance Request</div><div class="form-vertical">
+                    <div class="form-group"><label>Vehicle</label><select id="maintVehicleId">${vehicles.filter(v => v.status !== 'Maintenance').map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Issue Description</label><textarea id="maintDesc" rows="2" placeholder="Describe the issue"></textarea></div>
+                    <div class="form-group"><label>Assign Mechanic</label><select id="maintMechanicId">${mechanics.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}</select></div>
+                    <div class="form-actions"><button onclick="createMaintenanceRequest()"><i class="fas fa-plus"></i> Create Request</button></div>
+                </div></div>
+            `;
+        }
+        
+        // All users can view maintenance jobs
+        html += `
+            <div class="card"><div class="card-title">🔧 Maintenance Jobs</div>
+            <div class="filter-row">
+                <div class="form-group"><label>Filter by Status</label>
+                    <select id="maintFilterStatus" onchange="loadMaintenanceJobs()">
+                        <option value="all">All</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Assigned">Assigned</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Ready">Ready</option>
+                    </select>
+                </div>
+                <button onclick="loadMaintenanceJobs()"><i class="fas fa-filter"></i> Apply</button>
+            </div>
+            <div id="maintenanceJobsTable"></div>
+        </div>`;
+        
+        container.innerHTML = html;
+        loadMaintenanceJobs();
+    }
+
+    function loadMaintenanceJobs() {
+        const statusFilter = document.getElementById('maintFilterStatus')?.value || 'all';
+        let data = maintenance;
+        if (statusFilter !== 'all') {
+            data = data.filter(m => m.status === statusFilter);
+        }
+        
+        // Sort by date (newest first)
+        data.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+        
+        const table = document.getElementById('maintenanceJobsTable');
+        if (!table) return;
+        
+        const isAdmin = canEdit();
+        const isMech = isMechanic();
+        
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} maintenance jobs</div>
+            <div class="table-container"><table>
+                <thead><tr>
+                    <th>Vehicle</th>
+                    <th>Issue</th>
+                    <th>Mechanic</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr></thead>
+                <tbody>${data.map(m => {
+                    const vehicle = vehicles.find(v => v.id === m.vehicleId);
+                    const mechanic = mechanics.find(mech => mech.id === m.mechanicId);
+                    const isAssignedToMe = isMech && m.mechanicId === currentUser?.uid;
+                    const canUpdate = isAdmin || isAssignedToMe || userRole === 'supervisor';
+                    const canMarkReady = isAdmin || isAssignedToMe;
+                    
+                    let actionButtons = '';
+                    if (canUpdate) {
+                        // Status update buttons
+                        if (m.status === 'Pending' && (isAdmin || userRole === 'supervisor')) {
+                            actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'Assigned')" style="padding:4px 8px;font-size:0.7rem;background:var(--info)">Assign</button>`;
+                        }
+                        if (m.status === 'Assigned' && (isAdmin || isAssignedToMe)) {
+                            actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'In Progress')" style="padding:4px 8px;font-size:0.7rem;background:var(--secondary)">Start</button>`;
+                        }
+                        if (m.status === 'In Progress' && (isAdmin || isAssignedToMe)) {
+                            actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'Completed')" style="padding:4px 8px;font-size:0.7rem;background:var(--success)">Complete</button>`;
+                        }
+                        if (m.status === 'Completed' && canMarkReady) {
+                            actionButtons += `<button onclick="markVehicleReady('${m.id}')" class="ready-btn" style="padding:4px 8px;font-size:0.7rem">✅ Ready</button>`;
+                        }
+                        // Only admin can delete
+                        if (isAdmin) {
+                            actionButtons += `<button onclick="deleteMaintenance('${m.id}')" style="padding:4px 8px;font-size:0.7rem;background:var(--danger)"><i class="fas fa-trash"></i></button>`;
+                        }
+                    }
+                    
+                    const statusClass = m.status === 'Ready' ? 'status-completed' : 
+                                      m.status === 'Completed' ? 'status-completed' :
+                                      m.status === 'In Progress' ? 'status-inprogress' :
+                                      m.status === 'Assigned' ? 'status-assigned' : 'status-pending';
+                    
+                    return `<tr>
+                        <td>${vehicle?.reg || 'Vehicle Deleted'}</td>
+                        <td>${m.description || '-'}</td>
+                        <td>${mechanic?.name || 'Unassigned'}</td>
+                        <td><span class="status-badge ${statusClass}">${m.status || 'Pending'}</span></td>
+                        <td>${m.date || m.createdAt?.split('T')[0] || '-'}</td>
+                        <td>${actionButtons || '-'}</td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table></div>
+        `;
+    }
+
+    // ============================================================
+    //  MAINTENANCE CRUD OPERATIONS
+    // ============================================================
+    window.createMaintenanceRequest = async () => {
+        const vehicleId = document.getElementById('maintVehicleId')?.value;
+        const description = document.getElementById('maintDesc')?.value;
+        const mechanicId = document.getElementById('maintMechanicId')?.value;
+        
+        if (!vehicleId || !description) {
+            notify("⚠️ Please fill vehicle and description");
+            return;
+        }
+        
+        const data = {
+            vehicleId: vehicleId,
+            description: description,
+            mechanicId: mechanicId || '',
+            status: mechanicId ? 'Assigned' : 'Pending',
+            date: new Date().toISOString().split('T')[0],
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.email || 'Unknown'
+        };
+        
+        const id = await saveToFirestore('maintenance', data);
+        if (id) {
+            // Update vehicle status to Maintenance
+            const vehicle = vehicles.find(v => v.id === vehicleId);
+            if (vehicle) {
+                vehicle.status = 'Maintenance';
+                await saveToFirestore('vehicles', vehicle);
+            }
+            maintenance.push({ id, ...data });
+            renderAllPages();
+            loadMaintenanceJobs();
+            notify("✅ Maintenance request created and vehicle marked for maintenance");
+        }
+    };
+
+    window.updateMaintenanceStatus = async (id, newStatus) => {
+        const m = maintenance.find(m => m.id === id);
+        if (!m) { notify("❌ Maintenance record not found"); return; }
+        
+        m.status = newStatus;
+        if (newStatus === 'Completed') {
+            m.completedAt = new Date().toISOString();
+        }
+        await saveToFirestore('maintenance', m);
+        renderAllPages();
+        loadMaintenanceJobs();
+        notify(`✅ Status updated to ${newStatus}`);
+    };
+
+    window.markVehicleReady = async (maintenanceId) => {
+        const m = maintenance.find(m => m.id === maintenanceId);
+        if (!m) { notify("❌ Maintenance record not found"); return; }
+        
+        // Check if user is authorized (mechanic assigned or admin)
+        const isAssignedMechanic = isMechanic() && m.mechanicId === currentUser?.uid;
+        if (!canEdit() && !isAssignedMechanic) {
+            notify("⚠️ Only the assigned mechanic or admin can mark vehicle as ready");
+            return;
+        }
+        
+        // Update maintenance status
+        m.status = 'Ready';
+        m.readyAt = new Date().toISOString();
+        m.readyBy = currentUser?.email || 'Unknown';
+        await saveToFirestore('maintenance', m);
+        
+        // Update vehicle status to Active
+        const vehicle = vehicles.find(v => v.id === m.vehicleId);
+        if (vehicle) {
+            vehicle.status = 'Active';
+            await saveToFirestore('vehicles', vehicle);
+        }
+        
+        renderAllPages();
+        loadMaintenanceJobs();
+        notify(`✅ Vehicle ${vehicle?.reg || ''} is now ready and available for trips!`);
+    };
+
+    window.deleteMaintenance = async (id) => {
+        if (!canEdit()) { notify("⚠️ Only admin can delete"); return; }
+        if (!confirm("Delete this maintenance record?")) return;
+        
+        const m = maintenance.find(m => m.id === id);
+        if (m) {
+            // If vehicle is still in maintenance, revert to Active
+            const vehicle = vehicles.find(v => v.id === m.vehicleId);
+            if (vehicle && vehicle.status === 'Maintenance') {
+                vehicle.status = 'Active';
+                await saveToFirestore('vehicles', vehicle);
+            }
+        }
+        
+        await deleteFromFirestore('maintenance', id);
+        maintenance = maintenance.filter(m => m.id !== id);
+        renderAllPages();
+        loadMaintenanceJobs();
+        notify("✅ Maintenance record deleted");
+    };
+
+    // ============================================================
+    //  MECHANICS PAGE (Admin only)
+    // ============================================================
+    function renderMechanicsPage() {
+        const container = document.getElementById('mechanicsContent');
+        if (!container || !canEdit()) return;
+        
+        container.innerHTML = `
+            <div class="card"><div class="card-title">🔧 Create Mechanic</div><div class="form-vertical">
+                <div class="form-group"><label>Email *</label><input type="email" id="mechEmail" placeholder="mechanic@example.com"></div>
+                <div class="form-group"><label>Name *</label><input type="text" id="mechName" placeholder="Full name"></div>
+                <div class="form-group"><label>Specialization</label><input type="text" id="mechSpecialization" placeholder="e.g., Engine, Electrical, Body"></div>
+                <div class="form-group"><label>Password *</label><div class="password-field"><input type="password" id="mechPassword" placeholder="Min 6 characters"><button onclick="generateMechanicPassword()">Generate</button></div></div>
+                <div class="form-actions"><button onclick="createMechanic()">Create Mechanic</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📋 All Mechanics</div><div class="table-container"><table><thead><tr><th>Name</th><th>Email</th><th>Specialization</th><th>Assigned Jobs</th><th>Actions</th></tr></thead><tbody>${mechanics.map(m => `<tr><td>${m.name}</td><td>${m.email}</td><td>${m.specialization || '-'}</td><td>${maintenance.filter(mt => mt.mechanicId === m.uid && mt.status !== 'Ready').length}</td><td class="action-icons"><i class="fas fa-key" onclick="resetMechanicPassword('${m.email}')" title="Reset Password"></i><i class="fas fa-trash-alt" onclick="deleteMechanic('${m.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    window.createMechanic = async () => {
+        const email = document.getElementById('mechEmail')?.value.trim();
+        const name = document.getElementById('mechName')?.value.trim();
+        const password = document.getElementById('mechPassword')?.value;
+        const specialization = document.getElementById('mechSpecialization')?.value;
+        
+        if (!email || !name || !password) {
+            notify("⚠️ Please fill all required fields");
+            return;
+        }
+        if (password.length < 6) {
+            notify("⚠️ Password must be at least 6 characters");
+            return;
+        }
+        try {
+            const userCred = await createUserWithEmailAndPassword(auth, email, password);
+            const data = {
+                email,
+                name,
+                specialization: specialization || '',
+                uid: userCred.user.uid,
+                createdAt: new Date().toISOString(),
+                role: 'mechanic'
+            };
+            const id = await saveToFirestore('mechanics', data);
+            if (id) {
+                mechanics.push({ id, ...data });
+                renderAllPages();
+                notify(`✅ Mechanic "${name}" created successfully!\nEmail: ${email}`);
+                document.getElementById('mechEmail').value = '';
+                document.getElementById('mechName').value = '';
+                document.getElementById('mechPassword').value = '';
+                document.getElementById('mechSpecialization').value = '';
+            }
+        } catch(error) {
+            let msg = "Failed to create: ";
+            if (error.code === 'auth/email-already-in-use') msg = "❌ Email already registered";
+            else if (error.code === 'auth/weak-password') msg = "❌ Password too weak";
+            else msg += error.message;
+            notify(msg);
+        }
+    };
+
+    window.deleteMechanic = async (id) => {
+        if (!confirm("Delete this mechanic?")) return;
+        await deleteFromFirestore('mechanics', id);
+        mechanics = mechanics.filter(m => m.id !== id);
+        renderAllPages();
+        notify("✅ Mechanic deleted");
+    };
+
+    window.generateMechanicPassword = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let pass = '';
+        for (let i = 0; i < 10; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('mechPassword').value = pass;
+        notify("✅ Password generated!");
+    };
+
+    window.resetMechanicPassword = async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            notify(`✅ Reset email sent to ${email}`);
+        } catch(e) {
+            notify("❌ Error: " + e.message);
+        }
+    };
+
+    // ============================================================
+    //  OTHER PAGES (Simplified)
+    // ============================================================
+    function renderFuelPage() {
+        const container = document.getElementById('fuelContent');
+        if (!container || (!hasPermission('fuel') && !canEdit())) return;
+        container.innerHTML = `
+            <div class="card"><div class="card-title">⛽ Add Fuel</div><div class="form-vertical">
+                <div class="form-group"><label>Vehicle</label><select id="fuelVehicleId">${getAvailableVehicles().map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Date</label><input type="date" id="fuelDate" value="${new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>Liters</label><input type="number" id="fuelLiters" step="0.01"></div>
+                <div class="form-group"><label>Cost (₹)</label><input type="number" id="fuelCost" step="0.01"></div>
+                <div class="form-actions"><button onclick="addFuelRecord()">Add Fuel</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📊 Fuel Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Actions</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteFuelRecord('${f.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    function renderExpensesPage() {
+        const container = document.getElementById('expensesContent');
+        if (!container || (!hasPermission('expenses') && !canEdit())) return;
+        container.innerHTML = `
+            <div class="card"><div class="card-title">💰 Add Expense</div><div class="form-vertical">
+                <div class="form-group"><label>Vehicle</label><select id="expenseVehicleId">${getAvailableVehicles().map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Date</label><input type="date" id="expenseDate" value="${new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>Type</label><select id="expenseType"><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Other</option></select></div>
+                <div class="form-group"><label>Amount (₹)</label><input type="number" id="expenseAmount" step="0.01"></div>
+                <div class="form-actions"><button onclick="addExpense()">Add Expense</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📋 Expenses</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    function renderInsurancePage() {
+        const container = document.getElementById('insuranceContent');
+        if (!container || (!hasPermission('insurance') && !canEdit())) return;
+        container.innerHTML = `
+            <div class="card"><div class="card-title">📄 Update Insurance</div><div class="form-vertical">
+                <div class="form-group"><label>Vehicle</label><select id="insuranceVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Expiry Date</label><input type="date" id="insuranceExpiryDate"></div>
+                <div class="form-actions"><button onclick="updateInsurance()">Update</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📊 Insurance Status</div><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Expiry</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => { const expiry = v.insuranceExpiry; const diff = expiry ? Math.ceil((new Date(expiry) - new Date()) / (1000*60*60*24)) : null; const status = !expiry ? 'Not Set' : diff < 0 ? 'Expired' : diff <= 30 ? 'Expiring Soon' : 'Active'; return `<tr><td>${v.reg}</td><td>${expiry || '-'}</td><td><span class="status-badge ${status==='Expired'?'status-maintenance':status==='Expiring Soon'?'status-pending':'status-active'}">${status}</span></td></tr>`; }).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    function renderDocumentsPage() {
+        const container = document.getElementById('documentsContent');
+        if (!container || (!hasPermission('documents') && !canEdit())) return;
+        container.innerHTML = `
+            <div class="card"><div class="card-title">📎 Upload</div><div class="form-vertical">
+                <div class="form-group"><label>Type</label><select id="docType"><option>RC</option><option>Insurance</option><option>License</option><option>Other</option></select></div>
+                <div class="form-group"><label>Associated</label><select id="docAssociatedId">${vehicles.map(v => `<option value="v_${v.id}">Vehicle: ${v.reg}</option>`).join('')}${drivers.map(d => `<option value="d_${d.id}">Driver: ${d.name}</option>`).join('')}</select></div>
+                <div class="form-group"><label>File</label><input type="file" id="docFile" accept="image/*,.pdf"></div>
+                <div class="form-actions"><button onclick="uploadDocument()">Upload</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📁 Documents</div><div class="table-container"><table><thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Actions</th></tr></thead><tbody>${documents.map(d => `<tr><td>${d.date}</td><td>${d.type}</td><td>${d.associatedName || d.associatedId}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteDocument('${d.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+        `;
+    }
+
+    function renderAttendancePage() {
+        const container = document.getElementById('attendanceContent');
+        if (!container || (!hasPermission('attendance') && !canEdit())) return;
+        const today = new Date().toISOString().split('T')[0];
+        container.innerHTML = `
+            <div class="card"><div class="card-title">📋 Mark Attendance</div><div class="form-vertical">
+                <div class="form-group"><label>Driver</label><select id="attDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Date</label><input type="date" id="attDate" value="${today}"></div>
+                <div class="form-group"><label>Status</label><select id="attStatus"><option>Present</option><option>Absent</option><option>Leave</option><option>Weekly Off</option><option>Half Day</option></select></div>
+                <div class="form-actions"><button onclick="addAttendance()">Save</button></div>
+            </div></div>
+            <div class="card"><div class="card-title">📊 Attendance Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Actions</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAttendance('${a.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
@@ -561,14 +1006,6 @@
             <div class="card"><div class="card-title">💰 Generate Payroll with Incentives</div><div class="form-vertical">
                 <div class="form-group"><label>Driver</label><select id="payrollDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name} (₹${d.basicSalary || 15000}/mo)</option>`).join('')}</select></div>
                 <div class="form-group"><label>Month</label><input type="month" id="payrollMonth" value="${monthStr}"></div>
-                <div class="form-group"><label style="color:var(--info)"><i class="fas fa-info-circle"></i> Incentive Rules:</label>
-                    <div style="font-size:0.85rem;padding:10px;background:var(--light);border-radius:8px;">
-                        <p>📌 Monday-Saturday: First ${INCENTIVE_CONFIG.baseTrips} trips = ₹0 incentive</p>
-                        <p>💰 Beyond ${INCENTIVE_CONFIG.baseTrips} trips: ₹${INCENTIVE_CONFIG.bonusPerTrip} per extra trip</p>
-                        <p>📅 Sunday: 1 day extra salary per Sunday worked</p>
-                        <p>📆 Salary calculated based on actual days in month</p>
-                    </div>
-                </div>
                 <div class="form-actions">
                     <button onclick="calculateAndGeneratePayroll()"><i class="fas fa-calculator"></i> Calculate & Generate</button>
                     <button onclick="generatePayrollForAll()"><i class="fas fa-users"></i> Generate for All Drivers</button>
@@ -636,7 +1073,7 @@
         
         const existing = payroll.find(p => p.driverId === driverId && p.month === monthStr);
         if (existing) {
-            if (!confirm("Payroll already exists for this driver/month. Override?")) return;
+            if (!confirm("Payroll already exists. Override?")) return;
             payrollData.id = existing.id;
         }
         
@@ -758,91 +1195,38 @@
     };
 
     // ============================================================
-    //  OTHER PAGES (Simplified)
+    //  REPORTS PAGE
     // ============================================================
-    function renderMaintenancePage() {
-        const container = document.getElementById('maintenanceContent');
-        if (!container || (!hasPermission('maintenance') && !canEdit())) return;
+    function renderReportsPage() {
+        const container = document.getElementById('reportsContent');
+        if (!container || (!hasPermission('reports') && !canEdit())) return;
+        
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+        
         container.innerHTML = `
-            <div class="card"><div class="card-title">🔧 Maintenance Request</div><div class="form-vertical">
-                <div class="form-group"><label>Vehicle</label><select id="maintVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Issue Description</label><textarea id="maintDesc" rows="2"></textarea></div>
-                <div class="form-group"><label>Status</label><select id="maintStatus"><option value="Pending">Pending</option><option value="Assigned">Assigned</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option></select></div>
-                <div class="form-actions"><button onclick="addMaintenance()">Create Request</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">🔧 Maintenance Jobs</div><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Issue</th><th>Status</th><th>Cost</th><th>Actions</th></tr></thead><tbody>${maintenance.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td><span class="status-badge ${m.status==='Completed'?'status-completed':'status-pending'}">${m.status}</span></td><td>₹${m.cost || 0}</td><td class="action-icons"><i class="fas fa-edit" onclick="editMaintenance('${m.id}')"></i><i class="fas fa-trash-alt" onclick="deleteMaintenance('${m.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderFuelPage() {
-        const container = document.getElementById('fuelContent');
-        if (!container || (!hasPermission('fuel') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">⛽ Add Fuel</div><div class="form-vertical">
-                <div class="form-group"><label>Vehicle</label><select id="fuelVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Date</label><input type="date" id="fuelDate" value="${new Date().toISOString().split('T')[0]}"></div>
-                <div class="form-group"><label>Liters</label><input type="number" id="fuelLiters" step="0.01"></div>
-                <div class="form-group"><label>Cost (₹)</label><input type="number" id="fuelCost" step="0.01"></div>
-                <div class="form-actions"><button onclick="addFuelRecord()">Add Fuel</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📊 Fuel Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Actions</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteFuelRecord('${f.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderExpensesPage() {
-        const container = document.getElementById('expensesContent');
-        if (!container || (!hasPermission('expenses') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">💰 Add Expense</div><div class="form-vertical">
-                <div class="form-group"><label>Vehicle</label><select id="expenseVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Date</label><input type="date" id="expenseDate" value="${new Date().toISOString().split('T')[0]}"></div>
-                <div class="form-group"><label>Type</label><select id="expenseType"><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Other</option></select></div>
-                <div class="form-group"><label>Amount (₹)</label><input type="number" id="expenseAmount" step="0.01"></div>
-                <div class="form-actions"><button onclick="addExpense()">Add Expense</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📋 Expenses</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderInsurancePage() {
-        const container = document.getElementById('insuranceContent');
-        if (!container || (!hasPermission('insurance') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">📄 Update Insurance</div><div class="form-vertical">
-                <div class="form-group"><label>Vehicle</label><select id="insuranceVehicleId">${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Expiry Date</label><input type="date" id="insuranceExpiryDate"></div>
-                <div class="form-actions"><button onclick="updateInsurance()">Update</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📊 Insurance Status</div><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Expiry</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => { const expiry = v.insuranceExpiry; const diff = expiry ? Math.ceil((new Date(expiry) - new Date()) / (1000*60*60*24)) : null; const status = !expiry ? 'Not Set' : diff < 0 ? 'Expired' : diff <= 30 ? 'Expiring Soon' : 'Active'; return `<tr><td>${v.reg}</td><td>${expiry || '-'}</td><td><span class="status-badge ${status==='Expired'?'status-maintenance':status==='Expiring Soon'?'status-pending':'status-active'}">${status}</span></td></tr>`; }).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderDocumentsPage() {
-        const container = document.getElementById('documentsContent');
-        if (!container || (!hasPermission('documents') && !canEdit())) return;
-        container.innerHTML = `
-            <div class="card"><div class="card-title">📎 Upload</div><div class="form-vertical">
-                <div class="form-group"><label>Type</label><select id="docType"><option>RC</option><option>Insurance</option><option>License</option><option>Other</option></select></div>
-                <div class="form-group"><label>Associated</label><select id="docAssociatedId">${vehicles.map(v => `<option value="v_${v.id}">Vehicle: ${v.reg}</option>`).join('')}${drivers.map(d => `<option value="d_${d.id}">Driver: ${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>File</label><input type="file" id="docFile" accept="image/*,.pdf"></div>
-                <div class="form-actions"><button onclick="uploadDocument()">Upload</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📁 Documents</div><div class="table-container"><table><thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Actions</th></tr></thead><tbody>${documents.map(d => `<tr><td>${d.date}</td><td>${d.type}</td><td>${d.associatedName || d.associatedId}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteDocument('${d.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
-        `;
-    }
-
-    function renderAttendancePage() {
-        const container = document.getElementById('attendanceContent');
-        if (!container || (!hasPermission('attendance') && !canEdit())) return;
-        const today = new Date().toISOString().split('T')[0];
-        container.innerHTML = `
-            <div class="card"><div class="card-title">📋 Mark Attendance</div><div class="form-vertical">
-                <div class="form-group"><label>Driver</label><select id="attDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Date</label><input type="date" id="attDate" value="${today}"></div>
-                <div class="form-group"><label>Status</label><select id="attStatus"><option>Present</option><option>Absent</option><option>Leave</option><option>Weekly Off</option><option>Half Day</option></select></div>
-                <div class="form-actions"><button onclick="addAttendance()">Save</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📊 Attendance Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Actions</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAttendance('${a.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+            <div class="page-header"><h1>📊 Reports</h1></div>
+            <div class="report-tabs">
+                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
+                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
+                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
+                <button class="report-tab-btn" onclick="switchReportTab('maintenance')">🔧 Maintenance</button>
+                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
+                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
+                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
+                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
+            </div>
+            
+            <div id="vehiclesReportPanel" class="report-panel active"><div class="card"><div class="table-container"><table><thead><tr><th>Reg</th><th>Type</th><th>Contract</th><th>Status</th></tr></thead><tbody>${vehicles.map(v => `<tr><td>${v.reg}</td><td>${v.type || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="driversReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Name</th><th>License</th><th>Contract</th><th>Status</th></tr></thead><tbody>${drivers.map(d => `<tr><td>${d.name}</td><td>${d.license}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="tripsReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>${assignments.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Issue</th><th>Mechanic</th><th>Status</th></tr></thead><tbody>${maintenance.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${mechanics.find(me=>me.id===m.mechanicId)?.name || 'Unassigned'}</td><td><span class="status-badge ${m.status==='Ready'?'status-completed':m.status==='Completed'?'status-completed':m.status==='In Progress'?'status-inprogress':m.status==='Assigned'?'status-assigned':'status-pending'}">${m.status || 'Pending'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="fuelReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="expensesReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="attendanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="payrollReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Incentive</th><th>Total</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basicSalary}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody></table></div></div></div>
         `;
     }
 
@@ -882,638 +1266,27 @@
         `;
     }
 
-    // ============================================================
-    //  REPORTS PAGE WITH FULL EXPORT FUNCTIONALITY
-    // ============================================================
-    function renderReportsPage() {
-        const container = document.getElementById('reportsContent');
-        if (!container || (!hasPermission('reports') && !canEdit())) return;
-        
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-        const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-        
-        container.innerHTML = `
-            <div class="page-header"><h1>📊 Complete Reports</h1><p>All data with Excel & PDF export</p></div>
-            <div class="report-tabs">
-                <button class="report-tab-btn active" onclick="switchReportTab('vehicles')">🚛 Vehicles</button>
-                <button class="report-tab-btn" onclick="switchReportTab('drivers')">👤 Drivers</button>
-                <button class="report-tab-btn" onclick="switchReportTab('trips')">📅 Trips</button>
-                <button class="report-tab-btn" onclick="switchReportTab('maintenance')">🔧 Maintenance</button>
-                <button class="report-tab-btn" onclick="switchReportTab('fuel')">⛽ Fuel</button>
-                <button class="report-tab-btn" onclick="switchReportTab('expenses')">💰 Expenses</button>
-                <button class="report-tab-btn" onclick="switchReportTab('attendance')">📋 Attendance</button>
-                <button class="report-tab-btn" onclick="switchReportTab('payroll')">💳 Payroll</button>
-                <button class="report-tab-btn" onclick="switchReportTab('incentives')">⭐ Incentives</button>
-                <button class="report-tab-btn" onclick="switchReportTab('documents')">📁 Documents</button>
-            </div>
-            
-            <div id="vehiclesReportPanel" class="report-panel active">${getVehiclesReportHTML()}</div>
-            <div id="driversReportPanel" class="report-panel">${getDriversReportHTML()}</div>
-            <div id="tripsReportPanel" class="report-panel">${getTripsReportHTML()}</div>
-            <div id="maintenanceReportPanel" class="report-panel">${getMaintenanceReportHTML()}</div>
-            <div id="fuelReportPanel" class="report-panel">${getFuelReportHTML()}</div>
-            <div id="expensesReportPanel" class="report-panel">${getExpensesReportHTML()}</div>
-            <div id="attendanceReportPanel" class="report-panel">${getAttendanceReportHTML()}</div>
-            <div id="payrollReportPanel" class="report-panel">${getPayrollReportHTML(monthStr)}</div>
-            <div id="incentivesReportPanel" class="report-panel">${getIncentivesReportHTML(monthStr)}</div>
-            <div id="documentsReportPanel" class="report-panel">${getDocumentsReportHTML()}</div>
-        `;
-        
-        // Load all report data
-        loadVehiclesReport();
-        loadDriversReport();
-        loadTripsReport();
-        loadMaintenanceReport();
-        loadFuelReport();
-        loadExpensesReport();
-        loadAttendanceReport();
-        loadPayrollReport();
-        loadIncentivesReport();
-        loadDocumentsReport();
+    function renderAllPages() {
+        renderDashboardPage();
+        renderVehiclesPage();
+        renderDriversPage();
+        renderAssignmentsPage();
+        renderMaintenancePage();
+        renderMechanicsPage();
+        renderFuelPage();
+        renderExpensesPage();
+        renderInsurancePage();
+        renderDocumentsPage();
+        renderAttendancePage();
+        renderPayrollPage();
+        renderIncentivesPage();
+        renderSupervisorsPage();
+        renderContractsPage();
+        renderReportsPage();
+        renderAuditPage();
+        renderLogo();
+        buildNavigation();
     }
-
-    // ============================================================
-    //  REPORT HTML GENERATORS
-    // ============================================================
-    function getVehiclesReportHTML() {
-        return `<div class="card"><div class="card-title">🚛 All Vehicles</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Contract</label><select id="vFilterContract" onchange="loadVehiclesReport()"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Status</label><select id="vFilterStatus" onchange="loadVehiclesReport()"><option value="">All</option><option value="Active">Active</option><option value="Maintenance">Maintenance</option><option value="Inactive">Inactive</option></select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadVehiclesReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportVehiclesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportVehiclesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="vehiclesReportTable"></div>
-        </div>`;
-    }
-
-    function getDriversReportHTML() {
-        return `<div class="card"><div class="card-title">👤 All Drivers</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Contract</label><select id="dFilterContract" onchange="loadDriversReport()"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Status</label><select id="dFilterStatus" onchange="loadDriversReport()"><option value="">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="On Leave">On Leave</option></select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadDriversReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportDriversExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportDriversPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="driversReportTable"></div>
-        </div>`;
-    }
-
-    function getTripsReportHTML() {
-        return `<div class="card"><div class="card-title">📅 All Trips</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="tFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="tFilterTo"></div>
-                <div class="form-group"><label>Contract</label><select id="tFilterContract"><option value="">All</option>${contracts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadTripsReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportTripsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportTripsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="tripsReportTable"></div>
-        </div>`;
-    }
-
-    function getMaintenanceReportHTML() {
-        return `<div class="card"><div class="card-title">🔧 Maintenance Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Status</label><select id="mFilterStatus" onchange="loadMaintenanceReport()"><option value="">All</option><option value="Pending">Pending</option><option value="Assigned">Assigned</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option></select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadMaintenanceReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportMaintenanceExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportMaintenancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="maintenanceReportTable"></div>
-        </div>`;
-    }
-
-    function getFuelReportHTML() {
-        return `<div class="card"><div class="card-title">⛽ Fuel Records</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="fFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="fFilterTo"></div>
-                <div class="form-group"><label>Vehicle</label><select id="fFilterVehicle"><option value="">All</option>${vehicles.map(v => `<option value="${v.id}">${v.reg}</option>`).join('')}</select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadFuelReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportFuelExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportFuelPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="fuelReportTable"></div>
-        </div>`;
-    }
-
-    function getExpensesReportHTML() {
-        return `<div class="card"><div class="card-title">💰 Expenses</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="eFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="eFilterTo"></div>
-                <div class="form-group"><label>Type</label><select id="eFilterType"><option value="">All</option><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Other</option></select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadExpensesReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportExpensesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportExpensesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="expensesReportTable"></div>
-        </div>`;
-    }
-
-    function getAttendanceReportHTML() {
-        return `<div class="card"><div class="card-title">📋 Attendance</div>
-            <div class="filter-row">
-                <div class="form-group"><label>From</label><input type="date" id="aFilterFrom"></div>
-                <div class="form-group"><label>To</label><input type="date" id="aFilterTo"></div>
-                <div class="form-group"><label>Driver</label><select id="aFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadAttendanceReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportAttendanceExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportAttendancePDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="attendanceReportTable"></div>
-        </div>`;
-    }
-
-    function getPayrollReportHTML(monthStr) {
-        return `<div class="card"><div class="card-title">💳 Payroll</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Month</label><input type="month" id="pFilterMonth" value="${monthStr}"></div>
-                <div class="form-group"><label>Driver</label><select id="pFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadPayrollReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportPayrollExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportPayrollPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="payrollReportTable"></div>
-        </div>`;
-    }
-
-    function getIncentivesReportHTML(monthStr) {
-        return `<div class="card"><div class="card-title">⭐ Incentives</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Month</label><input type="month" id="iFilterMonth" value="${monthStr}"></div>
-                <div class="form-group"><label>Driver</label><select id="iFilterDriver"><option value="">All</option>${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadIncentivesReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportIncentivesExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportIncentivesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="incentivesReportTable"></div>
-        </div>`;
-    }
-
-    function getDocumentsReportHTML() {
-        return `<div class="card"><div class="card-title">📁 Documents</div>
-            <div class="filter-row">
-                <div class="form-group"><label>Type</label><select id="docFilterType" onchange="loadDocumentsReport()"><option value="">All</option><option>RC</option><option>Insurance</option><option>License</option><option>Permit</option><option>Other</option></select></div>
-                <div class="filter-buttons">
-                    <button onclick="loadDocumentsReport()"><i class="fas fa-filter"></i> Apply</button>
-                    <button onclick="exportDocumentsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button onclick="exportDocumentsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                </div>
-            </div>
-            <div id="documentsReportTable"></div>
-        </div>`;
-    }
-
-    // ============================================================
-    //  REPORT LOAD FUNCTIONS
-    // ============================================================
-    function loadVehiclesReport() {
-        const contractId = document.getElementById('vFilterContract')?.value;
-        const status = document.getElementById('vFilterStatus')?.value;
-        let data = vehicles;
-        if (contractId) data = data.filter(v => v.contractId === contractId);
-        if (status) data = data.filter(v => v.status === status);
-        
-        const table = document.getElementById('vehiclesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${vehicles.length} vehicles</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Reg Number</th><th>Type</th><th>Model</th><th>Contract</th><th>Status</th><th>Insurance Expiry</th></tr></thead>
-                <tbody>${data.map(v => `<tr><td>${v.reg || '-'}</td><td>${v.type || '-'}</td><td>${v.model || '-'}</td><td>${contracts.find(c=>c.id===v.contractId)?.name || '-'}</td><td><span class="status-badge ${v.status==='Active'?'status-active':v.status==='Maintenance'?'status-maintenance':'status-pending'}">${v.status || 'Unknown'}</span></td><td>${v.insuranceExpiry || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._vehiclesReportData = data;
-    }
-
-    function loadDriversReport() {
-        const contractId = document.getElementById('dFilterContract')?.value;
-        const status = document.getElementById('dFilterStatus')?.value;
-        let data = drivers;
-        if (contractId) data = data.filter(d => d.contractId === contractId);
-        if (status) data = data.filter(d => d.status === status);
-        
-        const table = document.getElementById('driversReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${drivers.length} drivers</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Name</th><th>License</th><th>Mobile</th><th>Contract</th><th>Status</th><th>Basic Salary</th></tr></thead>
-                <tbody>${data.map(d => `<tr><td>${d.name || '-'}</td><td>${d.license || '-'}</td><td>${d.mobile || '-'}</td><td>${contracts.find(c=>c.id===d.contractId)?.name || '-'}</td><td><span class="status-badge ${d.status==='Active'?'status-active':d.status==='On Leave'?'status-pending':'status-maintenance'}">${d.status || 'Unknown'}</span></td><td>₹${d.basicSalary || 15000}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._driversReportData = data;
-    }
-
-    function loadTripsReport() {
-        const from = document.getElementById('tFilterFrom')?.value;
-        const to = document.getElementById('tFilterTo')?.value;
-        const contractId = document.getElementById('tFilterContract')?.value;
-        let data = assignments;
-        if (from) data = data.filter(a => a.date >= from);
-        if (to) data = data.filter(a => a.date <= to);
-        if (contractId) data = data.filter(a => a.contractId === contractId);
-        
-        const table = document.getElementById('tripsReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${assignments.length} trips</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Day</th><th>Driver</th><th>Vehicle</th><th>Contract</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
-                <tbody>${data.map(a => { const isSunday = a.date ? new Date(a.date).getDay() === 0 : false; return `<tr><td>${a.date || '-'}</td><td>${isSunday ? '🌞 Sunday' : 'Weekday'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td>${vehicles.find(v=>v.id===a.vehicleId)?.reg || '-'}</td><td>${contracts.find(c=>c.id===a.contractId)?.name || '-'}</td><td>${a.startLoc || '-'}</td><td>${a.endLoc || '-'}</td><td><span class="status-badge ${a.status==='Closed'?'status-completed':'status-pending'}">${a.status || 'Open'}</span></td></tr>`; }).join('')}</tbody>
-            </table></div>
-        `;
-        window._tripsReportData = data;
-    }
-
-    function loadMaintenanceReport() {
-        const status = document.getElementById('mFilterStatus')?.value;
-        let data = maintenance;
-        if (status) data = data.filter(m => m.status === status);
-        
-        const table = document.getElementById('maintenanceReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${maintenance.length} records</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Vehicle</th><th>Description</th><th>Mechanic</th><th>Status</th><th>Cost</th><th>Date</th></tr></thead>
-                <tbody>${data.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${m.mechanic || '-'}</td><td><span class="status-badge ${m.status==='Completed'?'status-completed':'status-pending'}">${m.status || 'Pending'}</span></td><td>₹${m.cost || 0}</td><td>${m.date || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._maintenanceReportData = data;
-    }
-
-    function loadFuelReport() {
-        const from = document.getElementById('fFilterFrom')?.value;
-        const to = document.getElementById('fFilterTo')?.value;
-        const vehicleId = document.getElementById('fFilterVehicle')?.value;
-        let data = fuelRecords;
-        if (from) data = data.filter(f => f.date >= from);
-        if (to) data = data.filter(f => f.date <= to);
-        if (vehicleId) data = data.filter(f => f.vehicleId === vehicleId);
-        
-        const totalCost = data.reduce((s, f) => s + (f.cost || 0), 0);
-        const totalLiters = data.reduce((s, f) => s + (f.liters || 0), 0);
-        
-        const table = document.getElementById('fuelReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Liters: <span>${totalLiters.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Cost: <span>₹${totalCost.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost (₹)</th></tr></thead>
-                <tbody>${data.map(f => `<tr><td>${f.date || '-'}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters || 0}</td><td>₹${f.cost || 0}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._fuelReportData = data;
-    }
-
-    function loadExpensesReport() {
-        const from = document.getElementById('eFilterFrom')?.value;
-        const to = document.getElementById('eFilterTo')?.value;
-        const type = document.getElementById('eFilterType')?.value;
-        let data = expenses;
-        if (from) data = data.filter(e => e.date >= from);
-        if (to) data = data.filter(e => e.date <= to);
-        if (type) data = data.filter(e => e.type === type);
-        
-        const totalAmount = data.reduce((s, e) => s + (e.amount || 0), 0);
-        
-        const table = document.getElementById('expensesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Amount: <span>₹${totalAmount.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount (₹)</th><th>Description</th></tr></thead>
-                <tbody>${data.map(e => `<tr><td>${e.date || '-'}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type || '-'}</td><td>₹${e.amount || 0}</td><td>${e.description || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._expensesReportData = data;
-    }
-
-    function loadAttendanceReport() {
-        const from = document.getElementById('aFilterFrom')?.value;
-        const to = document.getElementById('aFilterTo')?.value;
-        const driverId = document.getElementById('aFilterDriver')?.value;
-        let data = attendance;
-        if (from) data = data.filter(a => a.date >= from);
-        if (to) data = data.filter(a => a.date <= to);
-        if (driverId) data = data.filter(a => a.driverId === driverId);
-        
-        const present = data.filter(a => a.status === 'Present').length;
-        const absent = data.filter(a => a.status === 'Absent').length;
-        const leave = data.filter(a => a.status === 'Leave').length;
-        
-        const table = document.getElementById('attendanceReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Total: <span>${data.length}</span></div>
-                <div class="report-summary-item">Present: <span>${present}</span></div>
-                <div class="report-summary-item">Absent: <span>${absent}</span></div>
-                <div class="report-summary-item">Leave: <span>${leave}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Remarks</th></tr></thead>
-                <tbody>${data.map(a => `<tr><td>${a.date || '-'}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status || '-'}</span></td><td>${a.remarks || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._attendanceReportData = data;
-    }
-
-    function loadPayrollReport() {
-        const month = document.getElementById('pFilterMonth')?.value;
-        const driverId = document.getElementById('pFilterDriver')?.value;
-        let data = payroll;
-        if (month) data = data.filter(p => p.month === month);
-        if (driverId) data = data.filter(p => p.driverId === driverId);
-        
-        const totalBasic = data.reduce((s, p) => s + (p.basicSalary || 0), 0);
-        const totalIncentive = data.reduce((s, p) => s + (p.tripIncentive || 0), 0);
-        const totalEarnings = data.reduce((s, p) => s + (p.totalEarnings || 0), 0);
-        
-        const table = document.getElementById('payrollReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Basic: <span>₹${totalBasic.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Incentive: <span>₹${totalIncentive.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Earnings: <span>₹${totalEarnings.toFixed(2)}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Driver</th><th>Month</th><th>Basic (₹)</th><th>Present Days</th><th>Incentive (₹)</th><th>Sunday Extra</th><th>Total (₹)</th></tr></thead>
-                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month || '-'}</td><td>₹${p.basicSalary || 0}</td><td>${p.presentDays || 0}/${p.daysInMonth || 30}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>₹${p.sundayExtra || 0}</td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._payrollReportData = data;
-    }
-
-    function loadIncentivesReport() {
-        const month = document.getElementById('iFilterMonth')?.value;
-        const driverId = document.getElementById('iFilterDriver')?.value;
-        let data = payroll;
-        if (month) data = data.filter(p => p.month === month);
-        if (driverId) data = data.filter(p => p.driverId === driverId);
-        
-        const totalIncentive = data.reduce((s, p) => s + (p.tripIncentive || 0), 0);
-        const totalSunday = data.reduce((s, p) => s + (p.sundayCount || 0), 0);
-        
-        const table = document.getElementById('incentivesReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="report-summary">
-                <div class="report-summary-item">Records: <span>${data.length}</span></div>
-                <div class="report-summary-item">Total Incentive: <span>₹${totalIncentive.toFixed(2)}</span></div>
-                <div class="report-summary-item">Total Sunday Days: <span>${totalSunday}</span></div>
-            </div>
-            <div class="table-container"><table>
-                <thead><tr><th>Driver</th><th>Month</th><th>Total Trips</th><th>Incentive (₹)</th><th>Sunday Days</th><th>Sunday Extra</th></tr></thead>
-                <tbody>${data.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month || '-'}</td><td>${p.totalTrips || 0}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td>${p.sundayCount || 0}</td><td>₹${p.sundayExtra || 0}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._incentivesReportData = data;
-    }
-
-    function loadDocumentsReport() {
-        const type = document.getElementById('docFilterType')?.value;
-        let data = documents;
-        if (type) data = data.filter(d => d.type === type);
-        
-        const table = document.getElementById('documentsReportTable');
-        if (!table) return;
-        table.innerHTML = `
-            <div class="table-count">Showing ${data.length} of ${documents.length} documents</div>
-            <div class="table-container"><table>
-                <thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Remarks</th></tr></thead>
-                <tbody>${data.map(d => `<tr><td>${d.date || '-'}</td><td>${d.type || '-'}</td><td>${d.associatedName || d.associatedId || '-'}</td><td>${d.remarks || '-'}</td></tr>`).join('')}</tbody>
-            </table></div>
-        `;
-        window._documentsReportData = data;
-    }
-
-    // ============================================================
-    //  EXPORT FUNCTIONS - EXCEL & PDF
-    // ============================================================
-    function exportToExcel(data, columns, filename, sheetName) {
-        if (!data || data.length === 0) { notify("⚠️ No data to export"); return; }
-        const wsData = data.map(item => {
-            const row = {};
-            columns.forEach(col => {
-                row[col.label] = col.value(item);
-            });
-            return row;
-        });
-        const ws = XLSX.utils.json_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        XLSX.writeFile(wb, filename + '.xlsx');
-        notify('✅ ' + filename + ' exported successfully!');
-    }
-
-    function exportToPDF(elementId, filename) {
-        const el = document.getElementById(elementId);
-        if (!el) { notify("⚠️ No data to export"); return; }
-        if (el.innerHTML.trim() === '' || el.innerHTML.includes('No records')) {
-            notify("⚠️ No data to export");
-            return;
-        }
-        html2pdf().from(el).set({ margin: 0.5, filename: filename + '.pdf' }).save();
-        notify('✅ ' + filename + ' PDF exported!');
-    }
-
-    // Vehicle Exports
-    window.exportVehiclesExcel = () => {
-        const data = window._vehiclesReportData || vehicles;
-        const cols = [
-            { label: 'Reg Number', value: v => v.reg || '-' },
-            { label: 'Type', value: v => v.type || '-' },
-            { label: 'Model', value: v => v.model || '-' },
-            { label: 'Contract', value: v => contracts.find(c=>c.id===v.contractId)?.name || '-' },
-            { label: 'Status', value: v => v.status || '-' },
-            { label: 'Insurance Expiry', value: v => v.insuranceExpiry || '-' }
-        ];
-        exportToExcel(data, cols, 'Vehicles_Report', 'Vehicles');
-    };
-    window.exportVehiclesPDF = () => exportToPDF('vehiclesReportTable', 'Vehicles_Report');
-
-    // Driver Exports
-    window.exportDriversExcel = () => {
-        const data = window._driversReportData || drivers;
-        const cols = [
-            { label: 'Name', value: d => d.name || '-' },
-            { label: 'License', value: d => d.license || '-' },
-            { label: 'Mobile', value: d => d.mobile || '-' },
-            { label: 'Contract', value: d => contracts.find(c=>c.id===d.contractId)?.name || '-' },
-            { label: 'Status', value: d => d.status || '-' },
-            { label: 'Basic Salary', value: d => d.basicSalary || 15000 }
-        ];
-        exportToExcel(data, cols, 'Drivers_Report', 'Drivers');
-    };
-    window.exportDriversPDF = () => exportToPDF('driversReportTable', 'Drivers_Report');
-
-    // Trips Exports
-    window.exportTripsExcel = () => {
-        const data = window._tripsReportData || assignments;
-        const cols = [
-            { label: 'Date', value: a => a.date || '-' },
-            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
-            { label: 'Vehicle', value: a => vehicles.find(v=>v.id===a.vehicleId)?.reg || '-' },
-            { label: 'Contract', value: a => contracts.find(c=>c.id===a.contractId)?.name || '-' },
-            { label: 'Start Location', value: a => a.startLoc || '-' },
-            { label: 'End Location', value: a => a.endLoc || '-' },
-            { label: 'Status', value: a => a.status || 'Open' }
-        ];
-        exportToExcel(data, cols, 'Trips_Report', 'Trips');
-    };
-    window.exportTripsPDF = () => exportToPDF('tripsReportTable', 'Trips_Report');
-
-    // Maintenance Exports
-    window.exportMaintenanceExcel = () => {
-        const data = window._maintenanceReportData || maintenance;
-        const cols = [
-            { label: 'Vehicle', value: m => vehicles.find(v=>v.id===m.vehicleId)?.reg || '-' },
-            { label: 'Description', value: m => m.description || '-' },
-            { label: 'Mechanic', value: m => m.mechanic || '-' },
-            { label: 'Status', value: m => m.status || 'Pending' },
-            { label: 'Cost', value: m => m.cost || 0 },
-            { label: 'Date', value: m => m.date || '-' }
-        ];
-        exportToExcel(data, cols, 'Maintenance_Report', 'Maintenance');
-    };
-    window.exportMaintenancePDF = () => exportToPDF('maintenanceReportTable', 'Maintenance_Report');
-
-    // Fuel Exports
-    window.exportFuelExcel = () => {
-        const data = window._fuelReportData || fuelRecords;
-        const cols = [
-            { label: 'Date', value: f => f.date || '-' },
-            { label: 'Vehicle', value: f => vehicles.find(v=>v.id===f.vehicleId)?.reg || '-' },
-            { label: 'Liters', value: f => f.liters || 0 },
-            { label: 'Cost', value: f => f.cost || 0 }
-        ];
-        exportToExcel(data, cols, 'Fuel_Report', 'Fuel');
-    };
-    window.exportFuelPDF = () => exportToPDF('fuelReportTable', 'Fuel_Report');
-
-    // Expenses Exports
-    window.exportExpensesExcel = () => {
-        const data = window._expensesReportData || expenses;
-        const cols = [
-            { label: 'Date', value: e => e.date || '-' },
-            { label: 'Vehicle', value: e => vehicles.find(v=>v.id===e.vehicleId)?.reg || '-' },
-            { label: 'Type', value: e => e.type || '-' },
-            { label: 'Amount', value: e => e.amount || 0 },
-            { label: 'Description', value: e => e.description || '-' }
-        ];
-        exportToExcel(data, cols, 'Expenses_Report', 'Expenses');
-    };
-    window.exportExpensesPDF = () => exportToPDF('expensesReportTable', 'Expenses_Report');
-
-    // Attendance Exports
-    window.exportAttendanceExcel = () => {
-        const data = window._attendanceReportData || attendance;
-        const cols = [
-            { label: 'Date', value: a => a.date || '-' },
-            { label: 'Driver', value: a => drivers.find(d=>d.id===a.driverId)?.name || '-' },
-            { label: 'Status', value: a => a.status || '-' },
-            { label: 'Remarks', value: a => a.remarks || '-' }
-        ];
-        exportToExcel(data, cols, 'Attendance_Report', 'Attendance');
-    };
-    window.exportAttendancePDF = () => exportToPDF('attendanceReportTable', 'Attendance_Report');
-
-    // Payroll Exports
-    window.exportPayrollExcel = () => {
-        const data = window._payrollReportData || payroll;
-        const cols = [
-            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
-            { label: 'Month', value: p => p.month || '-' },
-            { label: 'Basic Salary', value: p => p.basicSalary || 0 },
-            { label: 'Present Days', value: p => p.presentDays || 0 },
-            { label: 'Trip Incentive', value: p => p.tripIncentive || 0 },
-            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 },
-            { label: 'Total Earnings', value: p => (p.totalEarnings || 0).toFixed(2) }
-        ];
-        exportToExcel(data, cols, 'Payroll_Report', 'Payroll');
-    };
-    window.exportPayrollPDF = () => exportToPDF('payrollReportTable', 'Payroll_Report');
-
-    // Incentives Exports
-    window.exportIncentivesExcel = () => {
-        const data = window._incentivesReportData || payroll;
-        const cols = [
-            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
-            { label: 'Month', value: p => p.month || '-' },
-            { label: 'Total Trips', value: p => p.totalTrips || 0 },
-            { label: 'Incentive', value: p => p.tripIncentive || 0 },
-            { label: 'Sunday Days', value: p => p.sundayCount || 0 },
-            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 }
-        ];
-        exportToExcel(data, cols, 'Incentives_Report', 'Incentives');
-    };
-    window.exportIncentivesPDF = () => exportToPDF('incentivesReportTable', 'Incentives_Report');
-
-    // Documents Exports
-    window.exportDocumentsExcel = () => {
-        const data = window._documentsReportData || documents;
-        const cols = [
-            { label: 'Date', value: d => d.date || '-' },
-            { label: 'Type', value: d => d.type || '-' },
-            { label: 'Associated', value: d => d.associatedName || d.associatedId || '-' },
-            { label: 'Remarks', value: d => d.remarks || '-' }
-        ];
-        exportToExcel(data, cols, 'Documents_Report', 'Documents');
-    };
-    window.exportDocumentsPDF = () => exportToPDF('documentsReportTable', 'Documents_Report');
-
-    // Payroll page export
-    window.exportPayrollReport = () => {
-        const month = document.getElementById('payrollFilterMonth')?.value;
-        let data = payroll;
-        if (month) data = data.filter(p => p.month === month);
-        const cols = [
-            { label: 'Driver', value: p => drivers.find(d=>d.id===p.driverId)?.name || '-' },
-            { label: 'Month', value: p => p.month || '-' },
-            { label: 'Basic Salary', value: p => p.basicSalary || 0 },
-            { label: 'Present Days', value: p => p.presentDays || 0 },
-            { label: 'Trip Incentive', value: p => p.tripIncentive || 0 },
-            { label: 'Sunday Extra', value: p => p.sundayExtra || 0 },
-            { label: 'Total Earnings', value: p => (p.totalEarnings || 0).toFixed(2) }
-        ];
-        exportToExcel(data, cols, `Payroll_${month || 'All'}`, 'Payroll');
-    };
 
     // ============================================================
     //  CRUD OPERATIONS
@@ -1569,10 +1342,14 @@
     };
 
     window.createAssignment = async () => {
+        const driverId = document.getElementById('assignDriverId')?.value;
+        const vehicleId = document.getElementById('assignVehicleId')?.value;
+        if (!driverId || !vehicleId) { notify("Select driver and vehicle"); return; }
+        
         const data = {
             date: document.getElementById('assignDate')?.value,
-            driverId: document.getElementById('assignDriverId')?.value,
-            vehicleId: document.getElementById('assignVehicleId')?.value,
+            driverId: driverId,
+            vehicleId: vehicleId,
             contractId: document.getElementById('assignContractId')?.value,
             startLoc: document.getElementById('assignStartLoc')?.value,
             endLoc: document.getElementById('assignEndLoc')?.value,
@@ -1590,31 +1367,6 @@
     window.deleteAssignment = async (id) => {
         await deleteFromFirestore('assignments', id);
         assignments = assignments.filter(a => a.id !== id);
-        renderAllPages();
-    };
-
-    window.addMaintenance = async () => {
-        const data = {
-            vehicleId: document.getElementById('maintVehicleId')?.value,
-            description: document.getElementById('maintDesc')?.value,
-            status: document.getElementById('maintStatus')?.value,
-            cost: 0,
-            date: new Date().toISOString().split('T')[0]
-        };
-        const id = await saveToFirestore('maintenance', data);
-        if (id) { maintenance.push({ id, ...data }); renderAllPages(); notify("Maintenance request created"); }
-    };
-
-    window.editMaintenance = async (id) => {
-        const m = maintenance.find(m => m.id === id);
-        if (!m) return;
-        const newStatus = prompt("New Status (Pending/Assigned/In Progress/Completed):", m.status);
-        if (newStatus) { m.status = newStatus; await saveToFirestore('maintenance', m); renderAllPages(); }
-    };
-
-    window.deleteMaintenance = async (id) => {
-        await deleteFromFirestore('maintenance', id);
-        maintenance = maintenance.filter(m => m.id !== id);
         renderAllPages();
     };
 
@@ -1711,23 +1463,6 @@
         loadPayrollRecords();
     };
 
-    window.addIncentive = async () => {
-        const data = {
-            driverId: document.getElementById('incDriverId')?.value,
-            amount: parseFloat(document.getElementById('incAmount')?.value),
-            reason: document.getElementById('incReason')?.value,
-            date: new Date().toISOString().split('T')[0]
-        };
-        const id = await saveToFirestore('incentives', data);
-        if (id) { incentives.push({ id, ...data }); renderAllPages(); notify("Incentive added"); }
-    };
-
-    window.deleteIncentive = async (id) => {
-        await deleteFromFirestore('incentives', id);
-        incentives = incentives.filter(i => i.id !== id);
-        renderAllPages();
-    };
-
     window.addContract = async () => {
         const name = document.getElementById('newContractName')?.value;
         if (!name) return notify("Enter contract name");
@@ -1822,8 +1557,8 @@
         if (pageId === 'payrollPage') {
             loadPayrollRecords();
         }
-        if (pageId === 'reportsPage') {
-            renderReportsPage();
+        if (pageId === 'maintenancePage') {
+            loadMaintenanceJobs();
         }
     };
 
@@ -1840,35 +1575,35 @@
         alert(`📄 Salary Slip\n━━━━━━━━━━━━━━━━━━━\nDriver: ${d?.name}\nMonth: ${p.month}\n━━━━━━━━━━━━━━━━━━━\nBasic Salary: ₹${p.basicSalary}\nPresent Days: ${p.presentDays || 0}/${p.daysInMonth || 30}\nTrip Incentive: ₹${p.tripIncentive || 0}\nSunday Extra: ₹${p.sundayExtra || 0}\n━━━━━━━━━━━━━━━━━━━\nTotal Earnings: ₹${net.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━`);
     };
 
-    function renderAllPages() {
-        renderDashboardPage();
-        renderVehiclesPage();
-        renderDriversPage();
-        renderAssignmentsPage();
-        renderMaintenancePage();
-        renderFuelPage();
-        renderExpensesPage();
-        renderInsurancePage();
-        renderDocumentsPage();
-        renderAttendancePage();
-        renderPayrollPage();
-        renderIncentivesPage();
-        renderSupervisorsPage();
-        renderContractsPage();
-        renderReportsPage();
-        renderAuditPage();
-        renderLogo();
-        buildNavigation();
-    }
+    window.exportPayrollReport = () => {
+        const month = document.getElementById('payrollFilterMonth')?.value;
+        let data = payroll;
+        if (month) data = data.filter(p => p.month === month);
+        const wsData = data.map(p => ({
+            Driver: drivers.find(d=>d.id===p.driverId)?.name || '-',
+            Month: p.month,
+            'Basic Salary': p.basicSalary,
+            'Present Days': p.presentDays || 0,
+            'Trip Incentive': p.tripIncentive || 0,
+            'Sunday Extra': p.sundayExtra || 0,
+            'Total Earnings': (p.totalEarnings || 0).toFixed(2)
+        }));
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Payroll");
+        XLSX.writeFile(wb, `Payroll_${month || 'All'}.xlsx`);
+        notify("✅ Payroll exported!");
+    };
 
     // ============================================================
-    //  AUTH
+    //  AUTH - FIXED: Proper supervisor/mechanic login from any device
     // ============================================================
     async function handleLogin(email, password) {
         try {
             const userCred = await signInWithEmailAndPassword(auth, email, password);
             const user = userCred.user;
             
+            // Check if Super Admin
             if (email === 'harishspeedel@gmail.com') {
                 currentUser = user;
                 userRole = 'superadmin';
@@ -1883,14 +1618,17 @@
                 return true;
             }
             
+            // Load roles data
             if (!isDataLoaded) {
-                const snap = await getDocs(collection(db, 'supervisors'));
+                let snap = await getDocs(collection(db, 'supervisors'));
                 supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                snap = await getDocs(collection(db, 'mechanics'));
+                mechanics = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 isDataLoaded = true;
             }
             
+            // Check if user is a Supervisor
             const sup = supervisors.find(s => s.email === email);
-            
             if (sup) {
                 currentUser = user;
                 userRole = 'supervisor';
@@ -1901,13 +1639,30 @@
                 document.getElementById('appContainer').style.display = 'flex';
                 document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
                 showPage('dashboardPage');
-                notify(`✅ Welcome ${sup.name || 'Supervisor'}!`);
+                notify(`✅ Welcome Supervisor ${sup.name || ''}!`);
                 return true;
-            } else {
-                await signOut(auth);
-                document.getElementById('loginError').innerText = '❌ Account not authorized. Please contact admin.';
-                return false;
             }
+            
+            // Check if user is a Mechanic
+            const mech = mechanics.find(m => m.email === email);
+            if (mech) {
+                currentUser = user;
+                userRole = 'mechanic';
+                userPermissions = ['maintenance', 'dashboard'];
+                userData = mech;
+                await loadAllData();
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                document.getElementById('currentUserName').innerText = mech.name || 'Mechanic';
+                showPage('maintenancePage');
+                notify(`✅ Welcome Mechanic ${mech.name || ''}!`);
+                return true;
+            }
+            
+            // User exists but not authorized
+            await signOut(auth);
+            document.getElementById('loginError').innerText = '❌ Account not authorized. Please contact admin.';
+            return false;
         } catch(error) {
             console.error("Login error:", error);
             let msg = "Invalid credentials";
@@ -1977,6 +1732,7 @@
                     <div id="driversPage" class="page"><div id="driversContent"></div></div>
                     <div id="assignmentsPage" class="page"><div id="assignmentsContent"></div></div>
                     <div id="maintenancePage" class="page"><div id="maintenanceContent"></div></div>
+                    <div id="mechanicsPage" class="page"><div id="mechanicsContent"></div></div>
                     <div id="fuelPage" class="page"><div id="fuelContent"></div></div>
                     <div id="expensesPage" class="page"><div id="expensesContent"></div></div>
                     <div id="insurancePage" class="page"><div id="insuranceContent"></div></div>
@@ -2020,8 +1776,11 @@
                     document.getElementById('currentUserName').innerText = 'Super Admin';
                     showPage('dashboardPage');
                 } else {
-                    const snap = await getDocs(collection(db, 'supervisors'));
+                    let snap = await getDocs(collection(db, 'supervisors'));
                     supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    snap = await getDocs(collection(db, 'mechanics'));
+                    mechanics = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    
                     const sup = supervisors.find(s => s.email === email);
                     if (sup) {
                         currentUser = user;
@@ -2033,6 +1792,19 @@
                         document.getElementById('appContainer').style.display = 'flex';
                         document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
                         showPage('dashboardPage');
+                    } else {
+                        const mech = mechanics.find(m => m.email === email);
+                        if (mech) {
+                            currentUser = user;
+                            userRole = 'mechanic';
+                            userPermissions = ['maintenance', 'dashboard'];
+                            userData = mech;
+                            await loadAllData();
+                            document.getElementById('loginScreen').style.display = 'none';
+                            document.getElementById('appContainer').style.display = 'flex';
+                            document.getElementById('currentUserName').innerText = mech.name || 'Mechanic';
+                            showPage('maintenancePage');
+                        }
                     }
                 }
             }
