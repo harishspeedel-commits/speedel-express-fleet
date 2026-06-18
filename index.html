@@ -12,8 +12,8 @@
     <!-- Firebase SDK v12.14.0 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, query, where, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
 
         const firebaseConfig = {
@@ -32,6 +32,28 @@
         const auth = getAuth(app);
         const analytics = getAnalytics(app);
 
+        // Enable offline persistence - keeps user logged in on refresh
+        setPersistence(auth, browserLocalPersistence)
+            .then(() => {
+                console.log("✅ Auth persistence set to local");
+            })
+            .catch((error) => {
+                console.error("❌ Auth persistence error:", error);
+            });
+
+        // Enable Firestore offline persistence
+        enableIndexedDbPersistence(db)
+            .then(() => {
+                console.log("✅ Firestore persistence enabled");
+            })
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    console.warn("⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.");
+                } else if (err.code === 'unimplemented') {
+                    console.warn("⚠️ Browser doesn't support persistence");
+                }
+            });
+
         window.db = db;
         window.auth = auth;
         window.collection = collection;
@@ -49,8 +71,10 @@
         window.onAuthStateChanged = onAuthStateChanged;
         window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
         window.sendPasswordResetEmail = sendPasswordResetEmail;
+        window.setPersistence = setPersistence;
+        window.browserLocalPersistence = browserLocalPersistence;
 
-        console.log("🔥 Firebase Connected!");
+        console.log("🔥 Firebase Connected! Session will persist on refresh.");
         window.firebaseReady = true;
     </script>
     
@@ -197,6 +221,7 @@
     let auditLogs = [];
     let companyLogo = localStorage.getItem('companyLogo') || '';
     let isDataLoaded = false;
+    let authInitialized = false;
 
     const INCENTIVE_CONFIG = {
         baseTrips: 6,
@@ -432,7 +457,7 @@
             
             isDataLoaded = true;
             renderAllPages();
-            notify("✅ Data loaded from Firebase Cloud");
+            notify("✅ Data loaded");
         } catch(e) { 
             console.error(e); 
             notify("❌ Firebase: " + e.message); 
@@ -589,7 +614,7 @@
     }
 
     // ============================================================
-    //  ASSIGNMENTS PAGE - ONLY ACTIVE VEHICLES SHOWN
+    //  ASSIGNMENTS PAGE
     // ============================================================
     function renderAssignmentsPage() {
         const container = document.getElementById('assignmentsContent');
@@ -612,18 +637,16 @@
     }
 
     // ============================================================
-    //  MAINTENANCE PAGE - FIXED FOR MECHANIC ACCESS
+    //  MAINTENANCE PAGE
     // ============================================================
     function renderMaintenancePage() {
         const container = document.getElementById('maintenanceContent');
         if (!container || (!hasPermission('maintenance') && !canEdit() && !isMechanic())) return;
         
         const isAdmin = canEdit();
-        const isMech = isMechanic();
         
         let html = '';
         
-        // Admin/Supervisor can create maintenance requests
         if (isAdmin || userRole === 'supervisor') {
             html += `
                 <div class="card"><div class="card-title">🔧 Create Maintenance Request</div><div class="form-vertical">
@@ -635,7 +658,6 @@
             `;
         }
         
-        // All users can view maintenance jobs
         html += `
             <div class="card"><div class="card-title">🔧 Maintenance Jobs</div>
             <div class="filter-row">
@@ -665,7 +687,6 @@
             data = data.filter(m => m.status === statusFilter);
         }
         
-        // Sort by date (newest first)
         data.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
         
         const table = document.getElementById('maintenanceJobsTable');
@@ -674,9 +695,6 @@
         const isAdmin = canEdit();
         const isMech = isMechanic();
         const mechanicUid = currentUser?.uid;
-        
-        console.log("Mechanic UID:", mechanicUid);
-        console.log("All maintenance jobs:", data);
         
         table.innerHTML = `
             <div class="table-count">Showing ${data.length} maintenance jobs</div>
@@ -692,14 +710,10 @@
                 <tbody>${data.map(m => {
                     const vehicle = vehicles.find(v => v.id === m.vehicleId);
                     const mechanic = mechanics.find(mech => mech.uid === m.mechanicId);
-                    // Check if this job is assigned to the current mechanic
                     const isAssignedToMe = isMech && m.mechanicId === mechanicUid;
-                    
-                    console.log(`Job ${m.id}: mechanicId=${m.mechanicId}, currentUid=${mechanicUid}, isAssigned=${isAssignedToMe}`);
                     
                     let actionButtons = '';
                     
-                    // MECHANIC WORKFLOW: Start → Complete → Ready (only for assigned jobs)
                     if (isAssignedToMe || isAdmin) {
                         if (m.status === 'Assigned') {
                             actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'In Progress')" class="action-btn btn-start"><i class="fas fa-play"></i> Start</button>`;
@@ -712,12 +726,10 @@
                         }
                     }
                     
-                    // Admin/Supervisor can assign if pending
                     if ((isAdmin || userRole === 'supervisor') && m.status === 'Pending') {
                         actionButtons += `<button onclick="updateMaintenanceStatus('${m.id}', 'Assigned')" class="action-btn btn-assign"><i class="fas fa-user-cog"></i> Assign</button>`;
                     }
                     
-                    // Only admin can delete
                     if (isAdmin) {
                         actionButtons += `<button onclick="deleteMaintenance('${m.id}')" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
                     }
@@ -731,7 +743,6 @@
                                       m.status === 'In Progress' ? 'status-inprogress' :
                                       m.status === 'Assigned' ? 'status-assigned' : 'status-pending';
                     
-                    // Timeline display
                     const steps = ['Pending', 'Assigned', 'In Progress', 'Completed', 'Ready'];
                     const currentStep = steps.indexOf(m.status);
                     
@@ -775,7 +786,6 @@
             return;
         }
         
-        // Get the mechanic's UID (this is the Firebase Auth UID)
         const data = {
             vehicleId: vehicleId,
             description: description,
@@ -789,7 +799,6 @@
         
         const id = await saveToFirestore('maintenance', data);
         if (id) {
-            // Update vehicle status to Maintenance
             const vehicle = vehicles.find(v => v.id === vehicleId);
             if (vehicle) {
                 vehicle.status = 'Maintenance';
@@ -798,7 +807,7 @@
             maintenance.push({ id, ...data });
             renderAllPages();
             loadMaintenanceJobs();
-            notify("✅ Maintenance request created and vehicle marked for maintenance");
+            notify("✅ Maintenance request created");
         }
     };
 
@@ -806,14 +815,12 @@
         const m = maintenance.find(m => m.id === id);
         if (!m) { notify("❌ Maintenance record not found"); return; }
         
-        // Check if mechanic is assigned to this job
         const isAssignedMechanic = isMechanic() && m.mechanicId === currentUser?.uid;
         if (isMechanic() && !isAssignedMechanic && !canEdit()) {
             notify("⚠️ You are not assigned to this job");
             return;
         }
         
-        // Validate status flow
         const validTransitions = {
             'Pending': ['Assigned'],
             'Assigned': ['In Progress'],
@@ -849,21 +856,18 @@
         const m = maintenance.find(m => m.id === maintenanceId);
         if (!m) { notify("❌ Maintenance record not found"); return; }
         
-        // Check if mechanic is assigned to this job
         const isAssignedMechanic = isMechanic() && m.mechanicId === currentUser?.uid;
         if (!canEdit() && !isAssignedMechanic) {
             notify("⚠️ Only the assigned mechanic or admin can mark vehicle as ready");
             return;
         }
         
-        // Update maintenance status
         m.status = 'Ready';
         m.readyAt = new Date().toISOString();
         m.readyBy = currentUser?.email || 'Unknown';
         m.updatedAt = new Date().toISOString();
         await saveToFirestore('maintenance', m);
         
-        // Update vehicle status to Active
         const vehicle = vehicles.find(v => v.id === m.vehicleId);
         if (vehicle) {
             vehicle.status = 'Active';
@@ -872,7 +876,7 @@
         
         renderAllPages();
         loadMaintenanceJobs();
-        notify(`✅ Vehicle ${vehicle?.reg || ''} is now ready and available for trips!`);
+        notify(`✅ Vehicle ${vehicle?.reg || ''} is now ready!`);
     };
 
     window.deleteMaintenance = async (id) => {
@@ -881,7 +885,6 @@
         
         const m = maintenance.find(m => m.id === id);
         if (m) {
-            // If vehicle is still in maintenance, revert to Active
             const vehicle = vehicles.find(v => v.id === m.vehicleId);
             if (vehicle && vehicle.status === 'Maintenance') {
                 vehicle.status = 'Active';
@@ -1350,7 +1353,7 @@
     }
 
     // ============================================================
-    //  CRUD OPERATIONS
+    //  CRUD OPERATIONS (Simplified)
     // ============================================================
     window.addVehicle = async () => {
         if (!canEdit()) return;
@@ -1657,7 +1660,7 @@
     };
 
     // ============================================================
-    //  AUTH
+    //  AUTH - FIXED: Session persists on refresh
     // ============================================================
     async function handleLogin(email, password) {
         try {
@@ -1818,9 +1821,16 @@
         showPage('dashboardPage');
         setTimeout(setupFirstAdmin, 2000);
 
+        // ============================================================
+        //  FIXED: onAuthStateChanged - Restores session on refresh
+        // ============================================================
         onAuthStateChanged(auth, async (user) => {
-            if (user && !currentUser) {
+            console.log("Auth state changed:", user?.email);
+            
+            if (user) {
+                // User is signed in
                 const email = user.email;
+                
                 if (email === 'harishspeedel@gmail.com') {
                     currentUser = user;
                     userRole = 'superadmin';
@@ -1831,7 +1841,9 @@
                     document.getElementById('appContainer').style.display = 'flex';
                     document.getElementById('currentUserName').innerText = 'Super Admin';
                     showPage('dashboardPage');
+                    console.log("✅ Session restored for Super Admin");
                 } else {
+                    // Load supervisors and mechanics data
                     let snap = await getDocs(collection(db, 'supervisors'));
                     supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     snap = await getDocs(collection(db, 'mechanics'));
@@ -1848,6 +1860,7 @@
                         document.getElementById('appContainer').style.display = 'flex';
                         document.getElementById('currentUserName').innerText = sup.name || email.split('@')[0];
                         showPage('dashboardPage');
+                        console.log("✅ Session restored for Supervisor:", sup.name);
                     } else {
                         const mech = mechanics.find(m => m.email === email);
                         if (mech) {
@@ -1860,8 +1873,16 @@
                             document.getElementById('appContainer').style.display = 'flex';
                             document.getElementById('currentUserName').innerText = mech.name || 'Mechanic';
                             showPage('maintenancePage');
+                            console.log("✅ Session restored for Mechanic:", mech.name);
                         }
                     }
+                }
+            } else {
+                // User is signed out
+                console.log("User is signed out");
+                if (document.getElementById('loginScreen')) {
+                    document.getElementById('loginScreen').style.display = 'flex';
+                    document.getElementById('appContainer').style.display = 'none';
                 }
             }
         });
