@@ -32,27 +32,13 @@
         const auth = getAuth(app);
         const analytics = getAnalytics(app);
 
-        // Enable offline persistence - keeps user logged in on refresh
         setPersistence(auth, browserLocalPersistence)
-            .then(() => {
-                console.log("✅ Auth persistence set to local");
-            })
-            .catch((error) => {
-                console.error("❌ Auth persistence error:", error);
-            });
+            .then(() => console.log("✅ Auth persistence set to local"))
+            .catch((error) => console.error("❌ Auth persistence error:", error));
 
-        // Enable Firestore offline persistence
         enableIndexedDbPersistence(db)
-            .then(() => {
-                console.log("✅ Firestore persistence enabled");
-            })
-            .catch((err) => {
-                if (err.code === 'failed-precondition') {
-                    console.warn("⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.");
-                } else if (err.code === 'unimplemented') {
-                    console.warn("⚠️ Browser doesn't support persistence");
-                }
-            });
+            .then(() => console.log("✅ Firestore persistence enabled"))
+            .catch((err) => console.warn("⚠️ Persistence warning:", err));
 
         window.db = db;
         window.auth = auth;
@@ -71,10 +57,8 @@
         window.onAuthStateChanged = onAuthStateChanged;
         window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
         window.sendPasswordResetEmail = sendPasswordResetEmail;
-        window.setPersistence = setPersistence;
-        window.browserLocalPersistence = browserLocalPersistence;
 
-        console.log("🔥 Firebase Connected! Session will persist on refresh.");
+        console.log("🔥 Firebase Connected!");
         window.firebaseReady = true;
     </script>
     
@@ -142,6 +126,9 @@
         .status-assigned { background: var(--info); color: white; }
         .status-inprogress { background: var(--secondary); color: white; }
         .status-ready { background: var(--success); color: white; }
+        .status-present { background: var(--success); color: white; }
+        .status-absent { background: var(--danger); color: white; }
+        .status-leave { background: var(--warning); color: #333; }
         .form-vertical { display: flex; flex-direction: column; }
         .form-actions { margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -190,7 +177,7 @@
         .status-timeline .step.done { background: var(--success); }
         .status-timeline .arrow { color: var(--gray); font-size: 0.6rem; }
         .mechanic-assigned { background: rgba(52, 152, 219, 0.1); border-left: 3px solid var(--info); }
-        .my-job-badge { background: var(--info); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.6rem; margin-left: 5px; }
+        .attendance-form textarea { resize: vertical; min-height: 60px; }
     </style>
 </head>
 <body>
@@ -221,7 +208,6 @@
     let auditLogs = [];
     let companyLogo = localStorage.getItem('companyLogo') || '';
     let isDataLoaded = false;
-    let authInitialized = false;
 
     const INCENTIVE_CONFIG = {
         baseTrips: 6,
@@ -989,7 +975,7 @@
     };
 
     // ============================================================
-    //  OTHER PAGES (Simplified)
+    //  FUEL PAGE
     // ============================================================
     function renderFuelPage() {
         const container = document.getElementById('fuelContent');
@@ -1006,6 +992,9 @@
         `;
     }
 
+    // ============================================================
+    //  EXPENSES PAGE
+    // ============================================================
     function renderExpensesPage() {
         const container = document.getElementById('expensesContent');
         if (!container || (!hasPermission('expenses') && !canEdit())) return;
@@ -1015,12 +1004,16 @@
                 <div class="form-group"><label>Date</label><input type="date" id="expenseDate" value="${new Date().toISOString().split('T')[0]}"></div>
                 <div class="form-group"><label>Type</label><select id="expenseType"><option>Fuel</option><option>Maintenance</option><option>Toll</option><option>Parking</option><option>Other</option></select></div>
                 <div class="form-group"><label>Amount (₹)</label><input type="number" id="expenseAmount" step="0.01"></div>
+                <div class="form-group"><label>Description</label><input type="text" id="expenseDesc" placeholder="Optional description"></div>
                 <div class="form-actions"><button onclick="addExpense()">Add Expense</button></div>
             </div></div>
             <div class="card"><div class="card-title">📋 Expenses</div><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
+    // ============================================================
+    //  INSURANCE PAGE
+    // ============================================================
     function renderInsurancePage() {
         const container = document.getElementById('insuranceContent');
         if (!container || (!hasPermission('insurance') && !canEdit())) return;
@@ -1034,6 +1027,9 @@
         `;
     }
 
+    // ============================================================
+    //  DOCUMENTS PAGE
+    // ============================================================
     function renderDocumentsPage() {
         const container = document.getElementById('documentsContent');
         if (!container || (!hasPermission('documents') && !canEdit())) return;
@@ -1042,27 +1038,90 @@
                 <div class="form-group"><label>Type</label><select id="docType"><option>RC</option><option>Insurance</option><option>License</option><option>Other</option></select></div>
                 <div class="form-group"><label>Associated</label><select id="docAssociatedId">${vehicles.map(v => `<option value="v_${v.id}">Vehicle: ${v.reg}</option>`).join('')}${drivers.map(d => `<option value="d_${d.id}">Driver: ${d.name}</option>`).join('')}</select></div>
                 <div class="form-group"><label>File</label><input type="file" id="docFile" accept="image/*,.pdf"></div>
+                <div class="form-group"><label>Remarks</label><input type="text" id="docRemarks" placeholder="Optional remarks"></div>
                 <div class="form-actions"><button onclick="uploadDocument()">Upload</button></div>
             </div></div>
             <div class="card"><div class="card-title">📁 Documents</div><div class="table-container"><table><thead><tr><th>Date</th><th>Type</th><th>Associated</th><th>Actions</th></tr></thead><tbody>${documents.map(d => `<tr><td>${d.date}</td><td>${d.type}</td><td>${d.associatedName || d.associatedId}</td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteDocument('${d.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
         `;
     }
 
+    // ============================================================
+    //  ATTENDANCE PAGE - FIXED: Properly handles remarks field
+    // ============================================================
     function renderAttendancePage() {
         const container = document.getElementById('attendanceContent');
         if (!container || (!hasPermission('attendance') && !canEdit())) return;
         const today = new Date().toISOString().split('T')[0];
+        
         container.innerHTML = `
-            <div class="card"><div class="card-title">📋 Mark Attendance</div><div class="form-vertical">
-                <div class="form-group"><label>Driver</label><select id="attDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select></div>
-                <div class="form-group"><label>Date</label><input type="date" id="attDate" value="${today}"></div>
-                <div class="form-group"><label>Status</label><select id="attStatus"><option>Present</option><option>Absent</option><option>Leave</option><option>Weekly Off</option><option>Half Day</option></select></div>
-                <div class="form-actions"><button onclick="addAttendance()">Save</button></div>
-            </div></div>
-            <div class="card"><div class="card-title">📊 Attendance Records</div><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Actions</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td><td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAttendance('${a.id}')"></i></td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card"><div class="card-title">📋 Mark Attendance</div>
+                <div class="form-vertical attendance-form">
+                    <div class="form-group"><label>Driver</label>
+                        <select id="attDriverId">${drivers.filter(d=>d.status==='Active').map(d => `<option value="${d.id}">${d.name}</option>`).join('')}</select>
+                    </div>
+                    <div class="form-group"><label>Date</label>
+                        <input type="date" id="attDate" value="${today}">
+                    </div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="attStatus">
+                            <option value="Present">Present</option>
+                            <option value="Absent">Absent</option>
+                            <option value="Leave">Leave</option>
+                            <option value="Weekly Off">Weekly Off</option>
+                            <option value="Half Day">Half Day</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Remarks (Optional)</label>
+                        <input type="text" id="attRemarks" placeholder="Any additional notes">
+                    </div>
+                    <div class="form-actions"><button onclick="addAttendance()"><i class="fas fa-save"></i> Save</button></div>
+                </div>
+            </div>
+            <div class="card"><div class="card-title">📊 Attendance Records</div>
+                <div class="filter-row">
+                    <div class="form-group"><label>From</label><input type="date" id="attFilterFrom" onchange="loadAttendanceRecords()"></div>
+                    <div class="form-group"><label>To</label><input type="date" id="attFilterTo" onchange="loadAttendanceRecords()"></div>
+                    <button onclick="loadAttendanceRecords()"><i class="fas fa-filter"></i> Apply</button>
+                </div>
+                <div id="attendanceRecordsTable"></div>
+            </div>
+        `;
+        loadAttendanceRecords();
+    }
+
+    function loadAttendanceRecords() {
+        const from = document.getElementById('attFilterFrom')?.value;
+        const to = document.getElementById('attFilterTo')?.value;
+        let data = attendance;
+        if (from) data = data.filter(a => a.date >= from);
+        if (to) data = data.filter(a => a.date <= to);
+        data.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        const table = document.getElementById('attendanceRecordsTable');
+        if (!table) return;
+        
+        table.innerHTML = `
+            <div class="table-count">Showing ${data.length} attendance records</div>
+            <div class="table-container"><table>
+                <thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Remarks</th><th>Actions</th></tr></thead>
+                <tbody>${data.map(a => {
+                    const statusClass = a.status === 'Present' ? 'status-present' : 
+                                       a.status === 'Absent' ? 'status-absent' : 'status-leave';
+                    return `<tr>
+                        <td>${a.date || '-'}</td>
+                        <td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td>
+                        <td><span class="status-badge ${statusClass}">${a.status || '-'}</span></td>
+                        <td>${a.remarks || '-'}</td>
+                        <td class="action-icons"><i class="fas fa-trash-alt" onclick="deleteAttendance('${a.id}')"></i></td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table></div>
         `;
     }
 
+    // ============================================================
+    //  PAYROLL PAGE
+    // ============================================================
     function renderPayrollPage() {
         const container = document.getElementById('payrollContent');
         if (!container || (!hasPermission('payroll') && !canEdit())) return;
@@ -1289,11 +1348,14 @@
             <div id="maintenanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Vehicle</th><th>Issue</th><th>Mechanic</th><th>Status</th></tr></thead><tbody>${maintenance.map(m => `<tr><td>${vehicles.find(v=>v.id===m.vehicleId)?.reg || '-'}</td><td>${m.description || '-'}</td><td>${mechanics.find(me=>me.uid===m.mechanicId)?.name || 'Unassigned'}</td><td><span class="status-badge ${m.status==='Ready'?'status-ready':m.status==='Completed'?'status-completed':m.status==='In Progress'?'status-inprogress':m.status==='Assigned'?'status-assigned':'status-pending'}">${m.status || 'Pending'}</span></td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="fuelReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Liters</th><th>Cost</th></tr></thead><tbody>${fuelRecords.map(f => `<tr><td>${f.date}</td><td>${vehicles.find(v=>v.id===f.vehicleId)?.reg || '-'}</td><td>${f.liters}</td><td>₹${f.cost}</td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="expensesReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Amount</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${e.date}</td><td>${vehicles.find(v=>v.id===e.vehicleId)?.reg || '-'}</td><td>${e.type}</td><td>₹${e.amount}</td></tr>`).join('')}</tbody></table></div></div></div>
-            <div id="attendanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-active':a.status==='Absent'?'status-maintenance':'status-pending'}">${a.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
+            <div id="attendanceReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Date</th><th>Driver</th><th>Status</th><th>Remarks</th></tr></thead><tbody>${attendance.map(a => `<tr><td>${a.date}</td><td>${drivers.find(d=>d.id===a.driverId)?.name || '-'}</td><td><span class="status-badge ${a.status==='Present'?'status-present':a.status==='Absent'?'status-absent':'status-leave'}">${a.status}</span></td><td>${a.remarks || '-'}</td></tr>`).join('')}</tbody></table></div></div></div>
             <div id="payrollReportPanel" class="report-panel"><div class="card"><div class="table-container"><table><thead><tr><th>Driver</th><th>Month</th><th>Basic</th><th>Incentive</th><th>Total</th></tr></thead><tbody>${payroll.map(p => `<tr><td>${drivers.find(d=>d.id===p.driverId)?.name || '-'}</td><td>${p.month}</td><td>₹${p.basicSalary}</td><td><span class="incentive-box">₹${p.tripIncentive || 0}</span></td><td><strong>₹${(p.totalEarnings || 0).toFixed(2)}</strong></td></tr>`).join('')}</tbody></table></div></div></div>
         `;
     }
 
+    // ============================================================
+    //  SUPERVISORS PAGE
+    // ============================================================
     function renderSupervisorsPage() {
         const container = document.getElementById('supervisorsContent');
         if (!container || !canEdit()) return;
@@ -1310,6 +1372,9 @@
         `;
     }
 
+    // ============================================================
+    //  CONTRACTS PAGE
+    // ============================================================
     function renderContractsPage() {
         const container = document.getElementById('contractsContent');
         if (!container || !canEdit()) return;
@@ -1322,6 +1387,9 @@
         `;
     }
 
+    // ============================================================
+    //  AUDIT PAGE
+    // ============================================================
     function renderAuditPage() {
         const container = document.getElementById('auditContent');
         if (!container || (!hasPermission('audit') && !canEdit())) return;
@@ -1330,6 +1398,9 @@
         `;
     }
 
+    // ============================================================
+    //  RENDER ALL PAGES
+    // ============================================================
     function renderAllPages() {
         renderDashboardPage();
         renderVehiclesPage();
@@ -1353,13 +1424,18 @@
     }
 
     // ============================================================
-    //  CRUD OPERATIONS (Simplified)
+    //  CRUD OPERATIONS (FIXED: Properly handle undefined values)
     // ============================================================
     window.addVehicle = async () => {
         if (!canEdit()) return;
         const reg = document.getElementById('newVehicleReg')?.value;
         if (!reg) return notify("Registration required");
-        const data = { reg, type: document.getElementById('newVehicleType')?.value, contractId: document.getElementById('newVehicleContract')?.value, status: document.getElementById('newVehicleStatus')?.value };
+        const data = { 
+            reg: reg, 
+            type: document.getElementById('newVehicleType')?.value || '', 
+            contractId: document.getElementById('newVehicleContract')?.value || '', 
+            status: document.getElementById('newVehicleStatus')?.value || 'Active' 
+        };
         const id = await saveToFirestore('vehicles', data);
         if (id) { vehicles.push({ id, ...data }); renderAllPages(); notify("Vehicle added"); }
     };
@@ -1382,11 +1458,11 @@
         const name = document.getElementById('newDriverName')?.value;
         if (!name) return notify("Name required");
         const data = { 
-            name, 
-            license: document.getElementById('newDriverLicense')?.value, 
+            name: name, 
+            license: document.getElementById('newDriverLicense')?.value || '', 
             basicSalary: parseFloat(document.getElementById('newDriverSalary')?.value) || 15000,
-            contractId: document.getElementById('newDriverContract')?.value, 
-            status: document.getElementById('newDriverStatus')?.value 
+            contractId: document.getElementById('newDriverContract')?.value || '', 
+            status: document.getElementById('newDriverStatus')?.value || 'Active' 
         };
         const id = await saveToFirestore('drivers', data);
         if (id) { drivers.push({ id, ...data }); renderAllPages(); notify("Driver added"); }
@@ -1411,12 +1487,12 @@
         if (!driverId || !vehicleId) { notify("Select driver and vehicle"); return; }
         
         const data = {
-            date: document.getElementById('assignDate')?.value,
+            date: document.getElementById('assignDate')?.value || new Date().toISOString().split('T')[0],
             driverId: driverId,
             vehicleId: vehicleId,
-            contractId: document.getElementById('assignContractId')?.value,
-            startLoc: document.getElementById('assignStartLoc')?.value,
-            endLoc: document.getElementById('assignEndLoc')?.value,
+            contractId: document.getElementById('assignContractId')?.value || '',
+            startLoc: document.getElementById('assignStartLoc')?.value || '',
+            endLoc: document.getElementById('assignEndLoc')?.value || '',
             status: 'Open'
         };
         const id = await saveToFirestore('assignments', data);
@@ -1436,10 +1512,10 @@
 
     window.addFuelRecord = async () => {
         const data = {
-            date: document.getElementById('fuelDate')?.value,
-            vehicleId: document.getElementById('fuelVehicleId')?.value,
-            liters: parseFloat(document.getElementById('fuelLiters')?.value),
-            cost: parseFloat(document.getElementById('fuelCost')?.value)
+            date: document.getElementById('fuelDate')?.value || new Date().toISOString().split('T')[0],
+            vehicleId: document.getElementById('fuelVehicleId')?.value || '',
+            liters: parseFloat(document.getElementById('fuelLiters')?.value) || 0,
+            cost: parseFloat(document.getElementById('fuelCost')?.value) || 0
         };
         if (!data.vehicleId || !data.liters || !data.cost) return notify("Fill all fields");
         const id = await saveToFirestore('fuelRecords', data);
@@ -1454,11 +1530,11 @@
 
     window.addExpense = async () => {
         const data = {
-            date: document.getElementById('expenseDate')?.value,
-            vehicleId: document.getElementById('expenseVehicleId')?.value,
-            type: document.getElementById('expenseType')?.value,
-            amount: parseFloat(document.getElementById('expenseAmount')?.value),
-            description: document.getElementById('expenseDesc')?.value
+            date: document.getElementById('expenseDate')?.value || new Date().toISOString().split('T')[0],
+            vehicleId: document.getElementById('expenseVehicleId')?.value || '',
+            type: document.getElementById('expenseType')?.value || 'Other',
+            amount: parseFloat(document.getElementById('expenseAmount')?.value) || 0,
+            description: document.getElementById('expenseDesc')?.value || ''
         };
         if (!data.vehicleId || !data.amount) return notify("Select vehicle and amount");
         const id = await saveToFirestore('expenses', data);
@@ -1485,11 +1561,11 @@
         reader.onload = async (e) => {
             const data = {
                 date: new Date().toISOString().split('T')[0],
-                type: document.getElementById('docType').value,
-                associatedId: document.getElementById('docAssociatedId').value,
-                associatedName: document.getElementById('docAssociatedId').selectedOptions[0]?.text,
+                type: document.getElementById('docType')?.value || 'Other',
+                associatedId: document.getElementById('docAssociatedId')?.value || '',
+                associatedName: document.getElementById('docAssociatedId')?.selectedOptions[0]?.text || '',
                 dataUrl: e.target.result,
-                remarks: document.getElementById('docRemarks')?.value
+                remarks: document.getElementById('docRemarks')?.value || ''
             };
             const id = await saveToFirestore('documents', data);
             if (id) { documents.push({ id, ...data }); renderAllPages(); notify("Document uploaded"); }
@@ -1503,21 +1579,66 @@
         renderAllPages();
     };
 
+    // ============================================================
+    //  FIXED: ATTENDANCE - Properly handles undefined values
+    // ============================================================
     window.addAttendance = async () => {
+        const driverId = document.getElementById('attDriverId')?.value;
+        const date = document.getElementById('attDate')?.value;
+        const status = document.getElementById('attStatus')?.value;
+        const remarks = document.getElementById('attRemarks')?.value || ''; // Default to empty string
+        
+        if (!driverId || !date || !status) {
+            notify("⚠️ Please select driver, date and status");
+            return;
+        }
+        
+        // Check if attendance already exists for this driver on this date
+        const existing = attendance.find(a => a.driverId === driverId && a.date === date);
+        if (existing) {
+            if (!confirm(`Attendance already exists for ${drivers.find(d=>d.id===driverId)?.name} on ${date}. Override?`)) {
+                return;
+            }
+        }
+        
         const data = {
-            date: document.getElementById('attDate')?.value,
-            driverId: document.getElementById('attDriverId')?.value,
-            status: document.getElementById('attStatus')?.value,
-            remarks: document.getElementById('attRemarks')?.value
+            driverId: driverId,
+            date: date,
+            status: status,
+            remarks: remarks || '', // Ensure remarks is never undefined
+            createdAt: new Date().toISOString(),
+            markedBy: currentUser?.email || 'Unknown'
         };
+        
+        // If existing, use its id to update
+        if (existing) {
+            data.id = existing.id;
+            const idx = attendance.findIndex(a => a.id === existing.id);
+            if (idx >= 0) {
+                attendance[idx] = { ...data };
+            }
+            await saveToFirestore('attendance', data);
+            renderAllPages();
+            loadAttendanceRecords();
+            notify(`✅ Attendance updated for ${drivers.find(d=>d.id===driverId)?.name}`);
+            return;
+        }
+        
         const id = await saveToFirestore('attendance', data);
-        if (id) { attendance.push({ id, ...data }); renderAllPages(); notify("Attendance marked"); }
+        if (id) {
+            attendance.push({ id, ...data });
+            renderAllPages();
+            loadAttendanceRecords();
+            notify(`✅ Attendance marked for ${drivers.find(d=>d.id===driverId)?.name}`);
+        }
     };
 
     window.deleteAttendance = async (id) => {
         await deleteFromFirestore('attendance', id);
         attendance = attendance.filter(a => a.id !== id);
         renderAllPages();
+        loadAttendanceRecords();
+        notify("✅ Attendance record deleted");
     };
 
     window.deletePayroll = async (id) => {
@@ -1560,7 +1681,7 @@
             const data = {
                 email,
                 name,
-                contractId: document.getElementById('supContractId')?.value,
+                contractId: document.getElementById('supContractId')?.value || '',
                 permissions: perms,
                 uid: userCred.user.uid,
                 createdAt: new Date().toISOString()
@@ -1624,6 +1745,9 @@
         if (pageId === 'maintenancePage') {
             loadMaintenanceJobs();
         }
+        if (pageId === 'attendancePage') {
+            loadAttendanceRecords();
+        }
     };
 
     window.toggleTheme = () => {
@@ -1660,7 +1784,7 @@
     };
 
     // ============================================================
-    //  AUTH - FIXED: Session persists on refresh
+    //  AUTH
     // ============================================================
     async function handleLogin(email, password) {
         try {
@@ -1821,14 +1945,10 @@
         showPage('dashboardPage');
         setTimeout(setupFirstAdmin, 2000);
 
-        // ============================================================
-        //  FIXED: onAuthStateChanged - Restores session on refresh
-        // ============================================================
         onAuthStateChanged(auth, async (user) => {
             console.log("Auth state changed:", user?.email);
             
             if (user) {
-                // User is signed in
                 const email = user.email;
                 
                 if (email === 'harishspeedel@gmail.com') {
@@ -1843,7 +1963,6 @@
                     showPage('dashboardPage');
                     console.log("✅ Session restored for Super Admin");
                 } else {
-                    // Load supervisors and mechanics data
                     let snap = await getDocs(collection(db, 'supervisors'));
                     supervisors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     snap = await getDocs(collection(db, 'mechanics'));
@@ -1878,7 +1997,6 @@
                     }
                 }
             } else {
-                // User is signed out
                 console.log("User is signed out");
                 if (document.getElementById('loginScreen')) {
                     document.getElementById('loginScreen').style.display = 'flex';
