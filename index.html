@@ -12,9 +12,9 @@
     <!-- Firebase SDK v12.14.0 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, query, where, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, query, where, enableIndexedDbPersistence, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAq_iW6IYhbSLaa4xvrCN4ekWcbLwc_1k4",
@@ -27,39 +27,69 @@
             measurementId: "G-SRB8MY91VS"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const analytics = getAnalytics(app);
+        try {
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            console.log("✅ Firebase app initialized");
+            
+            const db = getFirestore(app);
+            console.log("✅ Firestore initialized");
+            
+            const auth = getAuth(app);
+            console.log("✅ Auth initialized");
+            
+            const analytics = getAnalytics(app);
+            console.log("✅ Analytics initialized");
 
-        setPersistence(auth, browserLocalPersistence)
-            .then(() => console.log("✅ Auth persistence set to local"))
-            .catch((error) => console.error("❌ Auth persistence error:", error));
+            // Enable offline persistence
+            setPersistence(auth, browserLocalPersistence)
+                .then(() => console.log("✅ Auth persistence set to local"))
+                .catch((error) => console.error("❌ Auth persistence error:", error));
 
-        enableIndexedDbPersistence(db)
-            .then(() => console.log("✅ Firestore persistence enabled"))
-            .catch((err) => console.warn("⚠️ Persistence warning:", err));
+            enableIndexedDbPersistence(db)
+                .then(() => console.log("✅ Firestore persistence enabled"))
+                .catch((err) => {
+                    if (err.code === 'failed-precondition') {
+                        console.warn("⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.");
+                    } else if (err.code === 'unimplemented') {
+                        console.warn("⚠️ Browser doesn't support persistence");
+                    } else {
+                        console.error("❌ Persistence error:", err);
+                    }
+                });
 
-        window.db = db;
-        window.auth = auth;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.updateDoc = updateDoc;
-        window.deleteDoc = deleteDoc;
-        window.doc = doc;
-        window.setDoc = setDoc;
-        window.getDoc = getDoc;
-        window.query = query;
-        window.where = where;
-        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-        window.signOut = signOut;
-        window.onAuthStateChanged = onAuthStateChanged;
-        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-        window.sendPasswordResetEmail = sendPasswordResetEmail;
+            // Make available globally
+            window.db = db;
+            window.auth = auth;
+            window.analytics = analytics;
+            window.collection = collection;
+            window.addDoc = addDoc;
+            window.getDocs = getDocs;
+            window.updateDoc = updateDoc;
+            window.deleteDoc = deleteDoc;
+            window.doc = doc;
+            window.setDoc = setDoc;
+            window.getDoc = getDoc;
+            window.query = query;
+            window.where = where;
+            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.signOut = signOut;
+            window.onAuthStateChanged = onAuthStateChanged;
+            window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+            window.sendPasswordResetEmail = sendPasswordResetEmail;
+            window.logEvent = logEvent;
 
-        console.log("🔥 Firebase Connected!");
-        window.firebaseReady = true;
+            console.log("🔥 Firebase Connected Successfully!");
+            window.firebaseReady = true;
+            
+            // Dispatch event to notify that Firebase is ready
+            document.dispatchEvent(new CustomEvent('firebaseReady'));
+            
+        } catch (error) {
+            console.error("❌ Firebase initialization error:", error);
+            window.firebaseReady = false;
+            document.dispatchEvent(new CustomEvent('firebaseError', { detail: error }));
+        }
     </script>
     
     <style>
@@ -192,6 +222,10 @@
         .btn-filter:hover { background: #2980b9; }
         .btn-clear { background: var(--gray); }
         .btn-clear:hover { background: #6c7a7d; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; }
+        .loading-overlay .spinner { width: 50px; height: 50px; border: 5px solid var(--light); border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-overlay p { color: white; margin-top: 15px; font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -222,6 +256,7 @@
     let auditLogs = [];
     let companyLogo = localStorage.getItem('companyLogo') || '';
     let isDataLoaded = false;
+    let firebaseReady = false;
 
     // Store report data for export
     let reportData = {};
@@ -288,6 +323,30 @@
 
     function getAvailableVehicles() {
         return vehicles.filter(v => v.status === 'Active');
+    }
+
+    // ============================================================
+    //  CHECK FIREBASE READY
+    // ============================================================
+    function waitForFirebase() {
+        return new Promise((resolve) => {
+            if (window.firebaseReady) {
+                resolve();
+                return;
+            }
+            const checkInterval = setInterval(() => {
+                if (window.firebaseReady) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 500);
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                console.warn("⚠️ Firebase not ready after 10 seconds");
+                resolve();
+            }, 10000);
+        });
     }
 
     // ============================================================
@@ -560,7 +619,7 @@
     }
 
     // ============================================================
-    //  RENDER FUNCTIONS (Simplified for space - keeping core functionality)
+    //  RENDER FUNCTIONS
     // ============================================================
     function renderDashboardPage() {
         const container = document.getElementById('dashboardContent');
@@ -2560,7 +2619,64 @@
         });
     }
 
-    initApp();
+    // Wait for Firebase to be ready before initializing the app
+    document.addEventListener('firebaseReady', function() {
+        console.log("🔥 Firebase is ready, initializing app...");
+        initApp();
+    });
+
+    // If Firebase is already ready, initialize immediately
+    if (window.firebaseReady) {
+        console.log("🔥 Firebase already ready, initializing app...");
+        setTimeout(initApp, 500);
+    }
+
+    // Show loading overlay until Firebase is ready
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    loadingOverlay.id = 'loadingOverlay';
+    loadingOverlay.innerHTML = `
+        <div class="spinner"></div>
+        <p>Loading SPEEDEL EXPRESS...</p>
+        <p style="font-size:0.8rem;margin-top:10px;color:#ccc;">Connecting to Firebase...</p>
+    `;
+    document.body.appendChild(loadingOverlay);
+
+    // Remove loading overlay when Firebase is ready or after timeout
+    function removeLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.5s';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 500);
+        }
+    }
+
+    document.addEventListener('firebaseReady', removeLoadingOverlay);
+    document.addEventListener('firebaseError', function(e) {
+        console.error("Firebase error:", e.detail);
+        document.getElementById('loadingOverlay').innerHTML = `
+            <div style="color:var(--danger);font-size:3rem;margin-bottom:20px;">❌</div>
+            <p style="color:white;font-size:1.2rem;">Failed to connect to Firebase</p>
+            <p style="color:#ccc;font-size:0.9rem;margin-top:10px;">${e.detail?.message || 'Please check your internet connection'}</p>
+            <button onclick="location.reload()" style="margin-top:20px;padding:12px 30px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:1rem;cursor:pointer;">Retry</button>
+        `;
+    });
+
+    // Timeout fallback - remove loading after 8 seconds even if Firebase doesn't respond
+    setTimeout(() => {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay && overlay.style.display !== 'none') {
+            overlay.innerHTML = `
+                <div style="color:var(--warning);font-size:3rem;margin-bottom:20px;">⏳</div>
+                <p style="color:white;font-size:1.2rem;">Taking longer than expected...</p>
+                <p style="color:#ccc;font-size:0.9rem;margin-top:10px;">Please wait or refresh the page</p>
+                <button onclick="location.reload()" style="margin-top:20px;padding:12px 30px;background:var(--primary);border:none;border-radius:8px;color:white;font-size:1rem;cursor:pointer;">Refresh</button>
+            `;
+        }
+    }, 8000);
 </script>
 </body>
 </html>
